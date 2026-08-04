@@ -3,8 +3,10 @@ import 'package:actibind/features/home/presentation/pages/activity_ledger_page.d
 import 'package:actibind/features/home/presentation/pages/child_restriction_page.dart';
 import 'package:actibind/features/home/presentation/pages/home_overview_page.dart';
 import 'package:actibind/features/home/presentation/pages/pattern_insight_page.dart';
+import 'package:actibind/features/home/presentation/pages/settings_page.dart';
 import 'package:actibind/features/home/presentation/pages/screen_time_dashboard_page.dart';
 import 'package:actibind/features/home/presentation/pages/smart_warning_page.dart';
+import 'package:forui/forui.dart';
 import 'package:flutter/material.dart';
 
 class HomePage extends StatefulWidget {
@@ -24,6 +26,7 @@ class _HomePageState extends State<HomePage> {
     ScreenTimeDashboardPage(),
     PatternInsightPage(),
     ChildRestrictionPage(),
+    SettingsPage(),
   ];
 
   static const List<String> _titles = <String>[
@@ -33,6 +36,7 @@ class _HomePageState extends State<HomePage> {
     'Screen Time Dashboard',
     'Pattern Insight Locator',
     'Child Restriction',
+    'Settings',
   ];
 
   void _onItemTapped(int index) {
@@ -43,43 +47,48 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_titles[_selectedIndex]),
+    return FScaffold(
+      header: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        child: Text(
+          _titles[_selectedIndex],
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+        ),
       ),
-      body: SafeArea(
-        child: _pages[_selectedIndex],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        selectedItemColor: Theme.of(context).colorScheme.primary,
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
+      childPad: false,
+      child: _pages[_selectedIndex],
+      footer: FBottomNavigationBar(
+        index: _selectedIndex,
+        onChange: _onItemTapped,
+        safeAreaBottom: true,
+        children: const [
+          FBottomNavigationBarItem(
             icon: Icon(Icons.home_filled),
-            label: 'Home',
+            label: Text('Home'),
           ),
-          BottomNavigationBarItem(
+          FBottomNavigationBarItem(
             icon: Icon(Icons.menu_book),
-            label: 'Ledger',
+            label: Text('Ledger'),
           ),
-          BottomNavigationBarItem(
+          FBottomNavigationBarItem(
             icon: Icon(Icons.warning_amber_rounded),
-            label: 'Warnings',
+            label: Text('Warnings'),
           ),
-          BottomNavigationBarItem(
+          FBottomNavigationBarItem(
             icon: Icon(Icons.dashboard),
-            label: 'Screen',
+            label: Text('Screen'),
           ),
-          BottomNavigationBarItem(
+          FBottomNavigationBarItem(
             icon: Icon(Icons.insights),
-            label: 'Patterns',
+            label: Text('Patterns'),
           ),
-          BottomNavigationBarItem(
+          FBottomNavigationBarItem(
             icon: Icon(Icons.child_care),
-            label: 'Child',
+            label: Text('Child'),
+          ),
+          FBottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: Text('Settings'),
           ),
         ],
       ),
