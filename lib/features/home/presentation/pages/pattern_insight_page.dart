@@ -1,6 +1,6 @@
 import 'package:actibind/core/constants/app_constants.dart';
-import 'package:forui/forui.dart';
 import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
 class PatternInsightPage extends StatelessWidget {
   const PatternInsightPage({super.key});
@@ -12,35 +12,55 @@ class PatternInsightPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          FCard(
+          shad.Card(
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: const [
-                  Text('Productive Peak Hours', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(
+                    'Productive Peak Hours',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                   SizedBox(height: 16),
                   _BarChart(),
                   SizedBox(height: 16),
-                  Text('You are most effective between 09:00 AM and 11:30 AM.', style: TextStyle(fontSize: 16)),
+                  Text(
+                    'You are most effective between 09:00 AM and 11:30 AM.',
+                    style: TextStyle(fontSize: 16),
+                  ),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 20),
-          FCard(
+          shad.Card(
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: const [
-                  Text('Sleep Hygiene Alert', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text(
+                    'Sleep Hygiene Alert',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
                   SizedBox(height: 8),
-                  Text('Late Night Scroll Alert', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                  Text(
+                    'Late Night Scroll Alert',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
                   SizedBox(height: 8),
-                  Text('Screen usage spiked 40% after midnight yesterday. Your restorative sleep was reduced by 1.5 hours.'),
+                  Text(
+                    'Screen usage spiked 40% after midnight yesterday. Your restorative sleep was reduced by 1.5 hours.',
+                  ),
                   SizedBox(height: 12),
-                  Text('Set Wind-down', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                  Text(
+                    'Set Wind-down',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ),

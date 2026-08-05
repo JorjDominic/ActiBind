@@ -1,6 +1,6 @@
 import 'package:actibind/core/constants/app_constants.dart';
-import 'package:forui/forui.dart';
 import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
 class ChildRestrictionPage extends StatelessWidget {
   const ChildRestrictionPage({super.key});
@@ -12,9 +12,10 @@ class ChildRestrictionPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Child Restriction', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          const Text('Keep your child’s study and play routines balanced with scheduled restrictions and safe access controls.', style: TextStyle(fontSize: 16, color: Colors.black54)),
+          const Text(
+            'Keep your child’s study and play routines balanced with scheduled restrictions and safe access controls.',
+            style: TextStyle(fontSize: 16, color: Colors.black54),
+          ),
           const SizedBox(height: 24),
           _RestrictionCard(
             title: 'Focus Lock',
@@ -37,7 +38,10 @@ class ChildRestrictionPage extends StatelessWidget {
             progress: '12 allowed',
           ),
           const SizedBox(height: 24),
-          const Text('Recent Activity', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            'Recent Activity',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 12),
           _ActivityTile(
             label: 'Instagram blocked',
@@ -60,7 +64,12 @@ class ChildRestrictionPage extends StatelessWidget {
 }
 
 class _RestrictionCard extends StatelessWidget {
-  const _RestrictionCard({required this.title, required this.subtitle, required this.icon, required this.progress});
+  const _RestrictionCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.progress,
+  });
 
   final String title;
   final String subtitle;
@@ -69,7 +78,7 @@ class _RestrictionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FCard(
+    return shad.Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Row(
@@ -77,7 +86,9 @@ class _RestrictionCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                color: Theme.of(
+                  context,
+                ).colorScheme.primary.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: Theme.of(context).colorScheme.primary),
@@ -87,13 +98,26 @@ class _RestrictionCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   Text(subtitle, style: const TextStyle(color: Colors.black54)),
+                  const SizedBox(height: 8),
+                  Text(
+                    progress,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
                 ],
               ),
             ),
-            Text(progress, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
           ],
         ),
       ),
@@ -109,7 +133,7 @@ class _ActivityTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FCard(
+    return shad.Card(
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(

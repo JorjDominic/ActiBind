@@ -1,6 +1,6 @@
 import 'package:actibind/core/constants/app_constants.dart';
-import 'package:forui/forui.dart';
 import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -13,11 +13,6 @@ class SettingsPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const Text(
-            'Settings',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          const Text(
             'Manage your account, alerts, and app behavior from one place.',
             style: TextStyle(fontSize: 16, color: Colors.black54),
           ),
@@ -25,17 +20,23 @@ class SettingsPage extends StatelessWidget {
           _SettingsSection(
             title: 'Preferences',
             children: [
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: true,
-                onChanged: (_) {},
-                title: const Text('Daily summary notifications'),
+              Material(
+                color: Colors.transparent,
+                child: SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: true,
+                  onChanged: (_) {},
+                  title: const Text('Daily summary notifications'),
+                ),
               ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: false,
-                onChanged: (_) {},
-                title: const Text('Dark mode follow system'),
+              Material(
+                color: Colors.transparent,
+                child: SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: false,
+                  onChanged: (_) {},
+                  title: const Text('Dark mode follow system'),
+                ),
               ),
             ],
           ),
@@ -83,13 +84,16 @@ class _SettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FCard(
+    return shad.Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
             ...children,
           ],
@@ -107,13 +111,16 @@ class _SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FCard(
+    return shad.Card(
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 4),
             Text(subtitle, style: const TextStyle(color: Colors.black54)),
           ],
