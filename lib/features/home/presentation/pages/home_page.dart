@@ -1,4 +1,5 @@
 import 'package:actibind/core/settings/family_mode_controller.dart';
+import 'package:actibind/core/constants/app_constants.dart';
 import 'package:actibind/features/home/presentation/pages/activity_ledger_page.dart';
 import 'package:actibind/features/family/presentation/pages/family_page.dart';
 import 'package:actibind/features/home/presentation/pages/home_overview_page.dart';
@@ -53,7 +54,7 @@ class _HomePageState extends State<HomePage> {
       _Destination.activity => const ActivityLedgerPage(),
       _Destination.insights => const ScreenTimeDashboardPage(),
       _Destination.family => const FamilyPage(),
-      _Destination.settings => const SettingsPage(),
+      _Destination.settings => SettingsPage(onSignOut: widget.onSignOut),
     };
 
     return LayoutBuilder(
@@ -73,18 +74,12 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        _selected.title,
+                        AppConstants.appName,
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.w700),
                       ),
                     ),
-                    if (widget.onSignOut != null)
-                      IconButton(
-                        tooltip: 'Sign out',
-                        visualDensity: VisualDensity.compact,
-                        onPressed: widget.onSignOut,
-                        icon: const Icon(Icons.logout_rounded, size: 19),
-                      ),
+                    const _NotificationsButton(),
                   ],
                 ),
               ),
@@ -95,6 +90,7 @@ class _HomePageState extends State<HomePage> {
             const shad.Divider(),
             SafeArea(
               top: false,
+              minimum: const EdgeInsets.only(bottom: 10),
               child: AnimatedBuilder(
                 animation: FamilyModeController.instance,
                 builder: (context, _) => _AppNavigation(
@@ -117,6 +113,157 @@ class _HomePageState extends State<HomePage> {
           ),
         );
       },
+    );
+  }
+}
+
+class _NotificationsButton extends StatelessWidget {
+  const _NotificationsButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: 'Notifications',
+      visualDensity: VisualDensity.compact,
+      onPressed: () => _showNotifications(context),
+      icon: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const Icon(Icons.notifications_none_rounded, size: 20),
+          Positioned(
+            right: -1,
+            top: -1,
+            child: Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: AppColors.coral,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.surface,
+                  width: 1.2,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showNotifications(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.fromLTRB(18, 14, 18, 22),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Notifications',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {},
+                  child: const Text('Mark all read'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const _NotificationTile(
+              icon: Icons.warning_amber_rounded,
+              color: AppColors.amber,
+              title: 'Focus conflict detected',
+              detail: 'TikTok was active during your Study block.',
+              time: '12 min ago',
+            ),
+            const Divider(height: 1),
+            const _NotificationTile(
+              icon: Icons.insights_rounded,
+              color: AppColors.teal,
+              title: 'Weekly insight ready',
+              detail: 'Your focused time improved by 15% this week.',
+              time: '2h ago',
+            ),
+            const Divider(height: 1),
+            const _NotificationTile(
+              icon: Icons.schedule_rounded,
+              color: AppColors.indigo,
+              title: 'Project Work starts soon',
+              detail: 'Your next scheduled block begins at 3:00 PM.',
+              time: 'Today',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationTile extends StatelessWidget {
+  const _NotificationTile({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.detail,
+    required this.time,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String detail;
+  final String time;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 18, color: color),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  detail,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            time,
+            style: const TextStyle(fontSize: 10, color: AppColors.muted),
+          ),
+        ],
+      ),
     );
   }
 }

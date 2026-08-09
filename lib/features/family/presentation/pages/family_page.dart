@@ -2,6 +2,7 @@ import 'package:actibind/core/constants/app_constants.dart';
 import 'package:actibind/core/theme/app_colors.dart';
 import 'package:actibind/features/family/models/family_models.dart';
 import 'package:actibind/features/family/presentation/pages/child_profile_page.dart';
+import 'package:actibind/shared/widgets/app_page_header.dart';
 import 'package:flutter/material.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
@@ -15,29 +16,10 @@ class FamilyPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Family',
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Manage child profiles, devices, and screen time',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const _ActiveBadge(),
-            ],
+          const AppPageHeader(
+            title: 'Family',
+            subtitle: 'Manage child profiles, devices, and screen time',
+            trailing: _ActiveBadge(),
           ),
           const SizedBox(height: 20),
           const _FamilySummary(),
@@ -460,7 +442,7 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                   Text(
                     '482 917',
                     style: TextStyle(
-                      fontSize: 28,
+                      fontSize: 24,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 3,
                     ),

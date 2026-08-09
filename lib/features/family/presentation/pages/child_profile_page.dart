@@ -127,7 +127,7 @@ class _OverviewTab extends StatelessWidget {
               SizedBox(height: 12),
               Text(
                 '2h 14m',
-                style: TextStyle(fontSize: 25, fontWeight: FontWeight.w800),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
               ),
               Text(
                 'of 3h daily limit',
@@ -275,7 +275,7 @@ class _ScreenTimeTabState extends State<_ScreenTimeTab> {
               SizedBox(height: 5),
               Text(
                 '2h 14m',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
               ),
               SizedBox(height: 4),
               Text(

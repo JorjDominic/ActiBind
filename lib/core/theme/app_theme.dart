@@ -18,18 +18,23 @@ class AppTheme {
       textTheme: const TextTheme(
         headlineMedium: TextStyle(
           color: AppColors.ink,
+          fontSize: 22,
           fontWeight: FontWeight.w800,
           letterSpacing: -0.7,
         ),
         titleLarge: TextStyle(
           color: AppColors.ink,
+          fontSize: 18,
           fontWeight: FontWeight.w700,
         ),
         titleMedium: TextStyle(
           color: AppColors.ink,
+          fontSize: 15,
           fontWeight: FontWeight.w700,
         ),
-        bodyMedium: TextStyle(color: AppColors.ink, height: 1.35),
+        bodyLarge: TextStyle(color: AppColors.ink, fontSize: 15, height: 1.35),
+        bodyMedium: TextStyle(color: AppColors.ink, fontSize: 14, height: 1.35),
+        bodySmall: TextStyle(color: AppColors.muted, fontSize: 12, height: 1.3),
       ),
       useMaterial3: true,
     );
@@ -53,18 +58,35 @@ class AppTheme {
       textTheme: const TextTheme(
         headlineMedium: TextStyle(
           color: Color(0xFFF5F7FF),
+          fontSize: 22,
           fontWeight: FontWeight.w800,
           letterSpacing: -0.7,
         ),
         titleLarge: TextStyle(
           color: Color(0xFFF5F7FF),
+          fontSize: 18,
           fontWeight: FontWeight.w700,
         ),
         titleMedium: TextStyle(
           color: Color(0xFFF5F7FF),
+          fontSize: 15,
           fontWeight: FontWeight.w700,
         ),
-        bodyMedium: TextStyle(color: Color(0xFFE6E8F0), height: 1.35),
+        bodyLarge: TextStyle(
+          color: Color(0xFFE6E8F0),
+          fontSize: 15,
+          height: 1.35,
+        ),
+        bodyMedium: TextStyle(
+          color: Color(0xFFE6E8F0),
+          fontSize: 14,
+          height: 1.35,
+        ),
+        bodySmall: TextStyle(
+          color: Color(0xFFAEB4C2),
+          fontSize: 12,
+          height: 1.3,
+        ),
       ),
       useMaterial3: true,
     );

@@ -93,7 +93,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Build healthier digital routines with Actibind.',
+                      'Build healthier digital routines with ActiBind.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: AppColors.muted),
                     ),

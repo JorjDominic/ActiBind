@@ -1,91 +1,57 @@
 import 'package:actibind/core/constants/app_constants.dart';
+import 'package:actibind/core/theme/app_colors.dart';
+import 'package:actibind/shared/widgets/app_page_header.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
-class ActivityLedgerPage extends StatelessWidget {
+class ActivityLedgerPage extends StatefulWidget {
   const ActivityLedgerPage({super.key});
 
   @override
+  State<ActivityLedgerPage> createState() => _ActivityLedgerPageState();
+}
+
+class _ActivityLedgerPageState extends State<ActivityLedgerPage> {
+  int _section = 0;
+
+  @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppConstants.defaultPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          shad.Card(
-            filled: true,
-            fillColor: isDark
-                ? const Color(0xFF431E12)
-                : const Color(0xFFFFF7ED),
-            borderColor: isDark
-                ? const Color(0xFF9A4B2E)
-                : const Color(0xFFFED7AA),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.warning_amber_rounded,
-                    color: Color(0xFFC2410C),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          'Focus conflict detected',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Instagram has been active for 12 minutes during your Work Deep-Dive block.',
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+          const AppPageHeader(
+            title: 'Activity',
+            subtitle: 'Plan your time and review your device usage',
+          ),
+          const SizedBox(height: 18),
+          SegmentedButton<int>(
+            expandedInsets: EdgeInsets.zero,
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(
+                value: 0,
+                icon: Icon(Icons.event_note_rounded),
+                label: Text('Schedule'),
               ),
-            ),
+              ButtonSegment(
+                value: 1,
+                icon: Icon(Icons.phone_android_rounded),
+                label: Text('Device Activity'),
+              ),
+            ],
+            selected: {_section},
+            onSelectionChanged: (value) =>
+                setState(() => _section = value.first),
           ),
-          const SizedBox(height: 16),
-          _InfoCard(
-            title: 'Total Focus',
-            value: '4h 20m',
-            subtitle: 'Blocks left • 3',
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Today’s Schedule',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          _ScheduleTile(
-            time: '07:00 AM - 08:30 AM',
-            label: 'Exercise',
-            description:
-                'Morning high-intensity interval training at local park.',
-            status: 'Done',
-            color: Colors.green,
-          ),
-          const SizedBox(height: 12),
-          _ScheduleTile(
-            time: '09:00 AM - 12:00 PM',
-            label: 'Deep Work: Project Aurora',
-            description:
-                'Focused coding and documentation update. Slack and browser restricted.',
-            status: 'Now',
-            color: Colors.purple,
-          ),
-          const SizedBox(height: 12),
-          _ScheduleTile(
-            time: '02:00 PM - 03:30 PM',
-            label: 'Language Study',
-            description: 'Spanish vocabulary and conversational practice.',
-            status: 'Next Up',
-            color: Colors.orange,
+          const SizedBox(height: 18),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: _section == 0
+                ? const _ScheduleView(key: ValueKey('schedule'))
+                : const _DeviceActivityView(key: ValueKey('device')),
           ),
         ],
       ),
@@ -93,35 +59,363 @@ class ActivityLedgerPage extends StatelessWidget {
   }
 }
 
-class _InfoCard extends StatelessWidget {
-  const _InfoCard({
-    required this.title,
-    required this.value,
-    required this.subtitle,
+class _ScheduleItem {
+  const _ScheduleItem({
+    required this.name,
+    required this.time,
+    required this.duration,
+    required this.category,
+    required this.status,
+    required this.icon,
+    required this.color,
+    this.monitored = true,
   });
+  final String name;
+  final String time;
+  final String duration;
+  final String category;
+  final String status;
+  final IconData icon;
+  final Color color;
+  final bool monitored;
+}
 
-  final String title;
-  final String value;
-  final String subtitle;
+class _ScheduleView extends StatefulWidget {
+  const _ScheduleView({super.key});
+  @override
+  State<_ScheduleView> createState() => _ScheduleViewState();
+}
+
+class _ScheduleViewState extends State<_ScheduleView> {
+  String _range = 'Today';
+  DateTime _selectedDate = DateUtils.dateOnly(DateTime.now());
+  final _items = <_ScheduleItem>[
+    const _ScheduleItem(
+      name: 'Study',
+      time: '8:00 AM – 10:00 AM',
+      duration: '2 hours',
+      category: 'Focus Block',
+      status: 'Completed',
+      icon: Icons.menu_book_rounded,
+      color: AppColors.indigo,
+    ),
+    const _ScheduleItem(
+      name: 'Lunch',
+      time: '12:00 PM – 1:00 PM',
+      duration: '1 hour',
+      category: 'Free Time',
+      status: 'Completed',
+      icon: Icons.restaurant_rounded,
+      color: AppColors.teal,
+      monitored: false,
+    ),
+    const _ScheduleItem(
+      name: 'Project Work',
+      time: '3:00 PM – 5:00 PM',
+      duration: '2 hours',
+      category: 'Focus Block',
+      status: 'Active',
+      icon: Icons.work_rounded,
+      color: AppColors.amber,
+    ),
+    const _ScheduleItem(
+      name: 'Sleep',
+      time: '10:00 PM – 6:00 AM',
+      duration: '8 hours',
+      category: 'Sleep Block',
+      status: 'Upcoming',
+      icon: Icons.bedtime_rounded,
+      color: AppColors.coral,
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    return shad.Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final isToday = DateUtils.isSameDay(_selectedDate, DateTime.now());
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
           children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 12),
-            Text(
-              value,
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isToday
+                        ? 'Today'
+                        : DateFormat('EEEE').format(_selectedDate),
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  Text(
+                    DateFormat('MMMM d, y').format(_selectedDate),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
-            Text(subtitle),
+            FilledButton.icon(
+              onPressed: _addActivity,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Add Activity'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _ActivityCalendar(
+          selectedDate: _selectedDate,
+          onSelected: (date) => setState(() {
+            _selectedDate = DateUtils.dateOnly(date);
+            _range = 'Today';
+          }),
+          onOpenCalendar: _openCalendar,
+        ),
+        const SizedBox(height: 16),
+        _CurrentActivity(onDetails: () => _showDetails(_items[2])),
+        const SizedBox(height: 18),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SegmentedButton<String>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: 'Today', label: Text('Today')),
+              ButtonSegment(value: 'Week', label: Text('Week')),
+              ButtonSegment(value: 'All', label: Text('All')),
+            ],
+            selected: {_range},
+            onSelectionChanged: (value) => setState(() => _range = value.first),
+          ),
+        ),
+        const SizedBox(height: 18),
+        Text(
+          _range == 'Week' ? 'Weekly schedule' : 'Today’s schedule',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 11),
+        if (_range == 'Week')
+          const _WeeklySchedule()
+        else
+          for (final item in _items) ...[
+            _ScheduleCard(item: item, onTap: () => _showDetails(item)),
+            const SizedBox(height: 11),
+          ],
+        const SizedBox(height: 10),
+        Text('Upcoming', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 10),
+        const _UpcomingRow(
+          day: 'Tomorrow',
+          time: '8:00 AM',
+          name: 'Study',
+          color: AppColors.indigo,
+        ),
+        const _UpcomingRow(
+          day: 'Tomorrow',
+          time: '2:00 PM',
+          name: 'Project Work',
+          color: AppColors.amber,
+        ),
+        const _UpcomingRow(
+          day: 'Monday',
+          time: '10:00 PM',
+          name: 'Sleep',
+          color: AppColors.coral,
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openCalendar() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(DateTime.now().year - 2),
+      lastDate: DateTime(DateTime.now().year + 2, 12, 31),
+      helpText: 'Select activity date',
+    );
+    if (date != null && mounted) {
+      setState(() {
+        _selectedDate = DateUtils.dateOnly(date);
+        _range = 'Today';
+      });
+    }
+  }
+
+  Future<void> _addActivity() async {
+    final created = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => const _ActivityFormSheet(),
+    );
+    if (created == true && mounted) {
+      setState(
+        () => _items.add(
+          const _ScheduleItem(
+            name: 'New Focus Session',
+            time: '6:00 PM – 7:00 PM',
+            duration: '1 hour',
+            category: 'Focus',
+            status: 'Upcoming',
+            icon: Icons.center_focus_strong_rounded,
+            color: AppColors.indigo,
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _showDetails(_ScheduleItem item) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      useSafeArea: true,
+      builder: (_) => _ScheduleDetailSheet(item: item),
+    );
+    if (!mounted) return;
+    if (action == 'edit') {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        builder: (_) => const _ActivityFormSheet(editing: true),
+      );
+    } else if (action == 'delete') {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Delete this activity?'),
+          content: const Text(
+            'This activity will be removed from your schedule.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Delete'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true) setState(() => _items.remove(item));
+    }
+  }
+}
+
+class _ActivityCalendar extends StatelessWidget {
+  const _ActivityCalendar({
+    required this.selectedDate,
+    required this.onSelected,
+    required this.onOpenCalendar,
+  });
+
+  final DateTime selectedDate;
+  final ValueChanged<DateTime> onSelected;
+  final VoidCallback onOpenCalendar;
+
+  @override
+  Widget build(BuildContext context) {
+    final start = selectedDate.subtract(
+      Duration(days: selectedDate.weekday - 1),
+    );
+    final colors = Theme.of(context).colorScheme;
+
+    return shad.Card(
+      filled: true,
+      fillColor: AppColors.teal.withValues(alpha: .06),
+      borderColor: AppColors.teal.withValues(alpha: .2),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.calendar_month_rounded,
+                  size: 19,
+                  color: AppColors.teal,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    DateFormat('MMMM y').format(selectedDate),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Choose a date',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: onOpenCalendar,
+                  icon: const Icon(Icons.calendar_today_rounded, size: 18),
+                ),
+              ],
+            ),
+            const SizedBox(height: 7),
+            Row(
+              children: [
+                for (var index = 0; index < 7; index++)
+                  Expanded(
+                    child: Builder(
+                      builder: (context) {
+                        final date = start.add(Duration(days: index));
+                        final selected = DateUtils.isSameDay(
+                          date,
+                          selectedDate,
+                        );
+                        final today = DateUtils.isSameDay(date, DateTime.now());
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () => onSelected(date),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 160),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: selected
+                                    ? AppColors.teal
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(12),
+                                border: today && !selected
+                                    ? Border.all(color: AppColors.teal)
+                                    : null,
+                              ),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    DateFormat(
+                                      'E',
+                                    ).format(date).substring(0, 1),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: selected
+                                          ? colors.onPrimary
+                                          : colors.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    '${date.day}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: selected ? colors.onPrimary : null,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
           ],
         ),
       ),
@@ -129,63 +423,1140 @@ class _InfoCard extends StatelessWidget {
   }
 }
 
-class _ScheduleTile extends StatelessWidget {
-  const _ScheduleTile({
+class _CurrentActivity extends StatelessWidget {
+  const _CurrentActivity({required this.onDetails});
+  final VoidCallback onDetails;
+  @override
+  Widget build(BuildContext context) => shad.Card(
+    filled: true,
+    fillColor: AppColors.amber.withValues(alpha: .09),
+    borderColor: AppColors.amber.withValues(alpha: .25),
+    child: Padding(
+      padding: const EdgeInsets.all(17),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.play_circle_filled_rounded,
+                color: AppColors.amber,
+                size: 19,
+              ),
+              SizedBox(width: 7),
+              Text(
+                'CURRENT ACTIVITY',
+                style: TextStyle(
+                  fontSize: 11,
+                  letterSpacing: 1,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.amber,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Project Work',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 3),
+                    const Text('3:00 PM – 5:00 PM'),
+                  ],
+                ),
+              ),
+              OutlinedButton(
+                onPressed: onDetails,
+                child: const Text('Details'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 13),
+          const LinearProgressIndicator(
+            value: .62,
+            minHeight: 7,
+            color: AppColors.amber,
+            borderRadius: BorderRadius.all(Radius.circular(7)),
+          ),
+          const SizedBox(height: 7),
+          const Text(
+            '45 minutes remaining',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ScheduleCard extends StatelessWidget {
+  const _ScheduleCard({required this.item, required this.onTap});
+  final _ScheduleItem item;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => shad.Card(
+    borderColor: item.color.withValues(alpha: .22),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(15),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: item.color.withValues(alpha: .12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(item.icon, color: item.color, size: 21),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item.name,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ),
+                      _StatusBadge(label: item.status, color: item.color),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    item.time,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 3),
+                  Wrap(
+                    spacing: 10,
+                    children: [
+                      Text(
+                        item.duration,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      Text(
+                        item.category,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: item.color,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (item.monitored)
+                        const Icon(Icons.shield_outlined, size: 15),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right_rounded),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.label, required this.color});
+  final String label;
+  final Color color;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: .1),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w700),
+    ),
+  );
+}
+
+class _UpcomingRow extends StatelessWidget {
+  const _UpcomingRow({
+    required this.day,
     required this.time,
-    required this.label,
-    required this.description,
-    required this.status,
+    required this.name,
     required this.color,
   });
-
+  final String day;
   final String time;
-  final String label;
-  final String description;
-  final String status;
+  final String name;
   final Color color;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Row(
+      children: [
+        Container(
+          width: 4,
+          height: 34,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        const SizedBox(width: 11),
+        SizedBox(
+          width: 75,
+          child: Text(day, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ),
+        Expanded(child: Text(name)),
+        Text(
+          time,
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
+class _WeeklySchedule extends StatelessWidget {
+  const _WeeklySchedule();
   @override
   Widget build(BuildContext context) {
+    const rows = [
+      ('Mon', 'Study · 7 PM', 'Sleep · 10 PM'),
+      ('Tue', 'Exercise · 5 PM', 'Study · 7 PM'),
+      ('Wed', 'Project · 3 PM', 'Sleep · 10 PM'),
+      ('Thu', 'Study · 7 PM', 'Free time · 9 PM'),
+      ('Fri', 'Exercise · 5 PM', 'Project · 7 PM'),
+    ];
+    return shad.Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          children: [
+            for (final row in rows)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 42,
+                      child: Text(
+                        row.$1,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    Expanded(child: Text(row.$2)),
+                    Expanded(
+                      child: Text(
+                        row.$3,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActivityFormSheet extends StatefulWidget {
+  const _ActivityFormSheet({this.editing = false});
+  final bool editing;
+  @override
+  State<_ActivityFormSheet> createState() => _ActivityFormSheetState();
+}
+
+class _ActivityFormSheetState extends State<_ActivityFormSheet> {
+  String category = 'Focus';
+  String repeat = 'Never';
+  bool monitor = true;
+  bool warnings = true;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.fromLTRB(
+      20,
+      16,
+      20,
+      MediaQuery.viewInsetsOf(context).bottom + 20,
+    ),
+    child: SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            widget.editing ? 'Edit Activity' : 'Add Activity',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 16),
+          const TextField(
+            decoration: InputDecoration(
+              labelText: 'Activity name',
+              prefixIcon: Icon(Icons.edit_calendar_rounded),
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: category,
+            decoration: const InputDecoration(
+              labelText: 'Category',
+              border: OutlineInputBorder(),
+            ),
+            items:
+                const [
+                      'Study',
+                      'Work',
+                      'Focus',
+                      'Sleep',
+                      'Exercise',
+                      'Entertainment',
+                      'Personal',
+                      'Custom',
+                    ]
+                    .map(
+                      (value) =>
+                          DropdownMenuItem(value: value, child: Text(value)),
+                    )
+                    .toList(),
+            onChanged: (value) => setState(() => category = value ?? category),
+          ),
+          const SizedBox(height: 12),
+          const Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  readOnly: true,
+                  decoration: InputDecoration(
+                    labelText: 'Start time',
+                    hintText: '3:00 PM',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  readOnly: true,
+                  decoration: InputDecoration(
+                    labelText: 'End time',
+                    hintText: '5:00 PM',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const TextField(
+            readOnly: true,
+            decoration: InputDecoration(
+              labelText: 'Date',
+              hintText: 'Today',
+              prefixIcon: Icon(Icons.calendar_today_rounded),
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: repeat,
+            decoration: const InputDecoration(
+              labelText: 'Repeat',
+              border: OutlineInputBorder(),
+            ),
+            items:
+                const ['Never', 'Daily', 'Weekdays', 'Weekends', 'Custom Days']
+                    .map(
+                      (value) =>
+                          DropdownMenuItem(value: value, child: Text(value)),
+                    )
+                    .toList(),
+            onChanged: (value) => setState(() => repeat = value ?? repeat),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: monitor,
+            onChanged: (value) => setState(() => monitor = value),
+            title: const Text('Monitor device usage'),
+            subtitle: const Text('Compare actual usage with this activity'),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: warnings,
+            onChanged: (value) => setState(() => warnings = value),
+            title: const Text('Warn about conflicts'),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Save Activity'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ScheduleDetailSheet extends StatelessWidget {
+  const _ScheduleDetailSheet({required this.item});
+  final _ScheduleItem item;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(20),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: item.color.withValues(alpha: .12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(item.icon, color: item.color),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                item.name,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        _DetailRow(label: 'Category', value: item.category),
+        _DetailRow(label: 'Date', value: 'Today'),
+        _DetailRow(label: 'Time', value: item.time),
+        _DetailRow(label: 'Duration', value: item.duration),
+        const _DetailRow(label: 'Repeat', value: 'Weekdays'),
+        _DetailRow(
+          label: 'Monitoring',
+          value: item.monitored ? 'Enabled' : 'Off',
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.pop(context, 'delete'),
+                icon: const Icon(Icons.delete_outline_rounded),
+                label: const Text('Delete'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: () => Navigator.pop(context, 'edit'),
+                icon: const Icon(Icons.edit_rounded),
+                label: const Text('Edit'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+      ],
+    ),
+  );
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.label, required this.value});
+  final String label;
+  final String value;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _DeviceActivityView extends StatefulWidget {
+  const _DeviceActivityView({super.key});
+  @override
+  State<_DeviceActivityView> createState() => _DeviceActivityViewState();
+}
+
+class _DeviceActivityViewState extends State<_DeviceActivityView> {
+  String range = 'Today';
+  bool warningVisible = true;
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      if (warningVisible) ...[
+        _WarningCard(
+          onDismiss: () => setState(() => warningVisible = false),
+          onView: () => _showUsageDetail(context, 'TikTok'),
+        ),
+        const SizedBox(height: 16),
+      ],
+      Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Today', style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  'What you actually did',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SegmentedButton<String>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: 'Today', label: Text('Today')),
+              ButtonSegment(value: 'Week', label: Text('Week')),
+            ],
+            selected: {range},
+            onSelectionChanged: (value) => setState(() => range = value.first),
+          ),
+        ],
+      ),
+      const SizedBox(height: 14),
+      if (range == 'Week') const _WeeklyUsage() else const _UsageSummary(),
+      const SizedBox(height: 16),
+      const _UsageChart(),
+      const SizedBox(height: 22),
+      Text('App Usage', style: Theme.of(context).textTheme.titleLarge),
+      const SizedBox(height: 8),
+      _AppUsageRow(
+        name: 'YouTube',
+        duration: '1h 12m',
+        progress: .78,
+        icon: Icons.play_circle_outline_rounded,
+        color: const Color(0xFFE05252),
+        onTap: () => _showUsageDetail(context, 'YouTube'),
+      ),
+      _AppUsageRow(
+        name: 'TikTok',
+        duration: '52m',
+        progress: .57,
+        icon: Icons.music_note_rounded,
+        color: AppColors.coral,
+        onTap: () => _showUsageDetail(context, 'TikTok'),
+      ),
+      _AppUsageRow(
+        name: 'Chrome',
+        duration: '46m',
+        progress: .50,
+        icon: Icons.language_rounded,
+        color: const Color(0xFF4285F4),
+        onTap: () => _showUsageDetail(context, 'Chrome'),
+      ),
+      _AppUsageRow(
+        name: 'Messenger',
+        duration: '31m',
+        progress: .34,
+        icon: Icons.chat_bubble_outline_rounded,
+        color: AppColors.indigo,
+        onTap: () => _showUsageDetail(context, 'Messenger'),
+      ),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton(onPressed: () {}, child: const Text('View All Apps')),
+      ),
+      const SizedBox(height: 12),
+      Text('Schedule Conflicts', style: Theme.of(context).textTheme.titleLarge),
+      const SizedBox(height: 10),
+      const _ConflictCard(
+        schedule: 'Study',
+        time: '7:00 PM – 9:00 PM',
+        detail: 'TikTok used for 22 minutes during Study schedule',
+      ),
+      const SizedBox(height: 10),
+      const _ConflictCard(
+        schedule: 'Sleep',
+        time: '10:00 PM – 6:00 AM',
+        detail: 'YouTube used at 11:24 PM for 18 minutes',
+      ),
+      const SizedBox(height: 20),
+      Text('Activity History', style: Theme.of(context).textTheme.titleLarge),
+      const SizedBox(height: 8),
+      for (final item in const [
+        ('8:40 PM', 'YouTube', '24 min', Icons.play_circle_outline_rounded),
+        ('8:05 PM', 'TikTok', '18 min', Icons.music_note_rounded),
+        ('7:30 PM', 'Chrome', '31 min', Icons.language_rounded),
+        ('6:45 PM', 'Messenger', '12 min', Icons.chat_bubble_outline_rounded),
+      ])
+        _HistoryRow(
+          time: item.$1,
+          app: item.$2,
+          duration: item.$3,
+          icon: item.$4,
+        ),
+      const SizedBox(height: 14),
+      const _InterventionLevels(),
+    ],
+  );
+
+  void _showUsageDetail(BuildContext context, String app) {
+    showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Activity Detail',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 18),
+            _DetailRow(label: 'App', value: app),
+            const _DetailRow(label: 'Used', value: '7:34 PM – 7:56 PM'),
+            const _DetailRow(label: 'Duration', value: '22 minutes'),
+            const _DetailRow(label: 'Scheduled Activity', value: 'Study'),
+            const _DetailRow(label: 'Schedule Status', value: 'Conflict'),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.event_note_rounded),
+              label: const Text('View Related Schedule'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WarningCard extends StatelessWidget {
+  const _WarningCard({required this.onDismiss, required this.onView});
+  final VoidCallback onDismiss;
+  final VoidCallback onView;
+  @override
+  Widget build(BuildContext context) => shad.Card(
+    filled: true,
+    fillColor: AppColors.coral.withValues(alpha: .09),
+    borderColor: AppColors.coral.withValues(alpha: .28),
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: AppColors.coral),
+              SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  'Schedule Conflict',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.coral,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 9),
+          const Text(
+            'You are currently using TikTok during your Study schedule.',
+          ),
+          const SizedBox(height: 5),
+          const Text(
+            'Study · 7:00 PM – 9:00 PM',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 11),
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              TextButton(onPressed: onDismiss, child: const Text('Dismiss')),
+              FilledButton.tonal(
+                onPressed: onView,
+                child: const Text('View Activity'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _UsageSummary extends StatelessWidget {
+  const _UsageSummary();
+  @override
+  Widget build(BuildContext context) {
+    const values = [
+      ('4h 18m', 'Screen Time', Icons.timer_rounded, AppColors.indigo),
+      ('YouTube', 'Most Used', Icons.play_circle_rounded, AppColors.coral),
+      ('12', 'Apps Used', Icons.apps_rounded, AppColors.teal),
+      ('3', 'Conflicts', Icons.warning_rounded, AppColors.amber),
+    ];
+    return shad.Card(
+      child: Padding(
+        padding: const EdgeInsets.all(15),
+        child: LayoutBuilder(
+          builder: (context, constraints) => Wrap(
+            spacing: 10,
+            runSpacing: 15,
+            children: [
+              for (final value in values)
+                SizedBox(
+                  width: (constraints.maxWidth - 10) / 2,
+                  child: Row(
+                    children: [
+                      Icon(value.$3, color: value.$4, size: 20),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              value.$1,
+                              maxLines: 1,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            Text(
+                              value.$2,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WeeklyUsage extends StatelessWidget {
+  const _WeeklyUsage();
+  @override
+  Widget build(BuildContext context) => shad.Card(
+    child: const Padding(
+      padding: EdgeInsets.all(16),
+      child: Column(
+        children: [
+          _WeekUsageRow(day: 'Mon', usage: '4h 12m', value: .70),
+          _WeekUsageRow(day: 'Tue', usage: '3h 48m', value: .63),
+          _WeekUsageRow(day: 'Wed', usage: '5h 02m', value: .84),
+          _WeekUsageRow(day: 'Thu', usage: '4h 18m', value: .72),
+        ],
+      ),
+    ),
+  );
+}
+
+class _WeekUsageRow extends StatelessWidget {
+  const _WeekUsageRow({
+    required this.day,
+    required this.usage,
+    required this.value,
+  });
+  final String day;
+  final String usage;
+  final double value;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 7),
+    child: Row(
+      children: [
+        SizedBox(
+          width: 38,
+          child: Text(day, style: const TextStyle(fontWeight: FontWeight.w700)),
+        ),
+        Expanded(
+          child: LinearProgressIndicator(
+            value: value,
+            minHeight: 7,
+            borderRadius: BorderRadius.circular(7),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(usage),
+      ],
+    ),
+  );
+}
+
+class _UsageChart extends StatelessWidget {
+  const _UsageChart();
+  @override
+  Widget build(BuildContext context) {
+    const bars = [.08, .04, .10, .35, .62, .45, .78, .55, .82, .66, .38, .20];
     return shad.Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Text(
+              'Usage throughout the day',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 100,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (var i = 0; i < bars.length; i++)
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: Container(
+                          height: 90 * bars[i],
+                          decoration: BoxDecoration(
+                            color:
+                                (i >= 7 && i <= 9
+                                        ? AppColors.coral
+                                        : AppColors.indigo)
+                                    .withValues(alpha: .72),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 7),
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  child: Text(
-                    time,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    status,
-                    style: TextStyle(color: color, fontWeight: FontWeight.bold),
-                  ),
-                ),
+                Text('12 AM', style: TextStyle(fontSize: 10)),
+                Text('6 AM', style: TextStyle(fontSize: 10)),
+                Text('12 PM', style: TextStyle(fontSize: 10)),
+                Text('6 PM', style: TextStyle(fontSize: 10)),
+                Text('12 AM', style: TextStyle(fontSize: 10)),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 4),
-            Text(description),
           ],
         ),
       ),
     );
   }
+}
+
+class _AppUsageRow extends StatelessWidget {
+  const _AppUsageRow({
+    required this.name,
+    required this.duration,
+    required this.progress,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+  final String name;
+  final String duration;
+  final double progress;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(12),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        name,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    Text(duration),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                LinearProgressIndicator(
+                  value: progress,
+                  color: color,
+                  backgroundColor: color.withValues(alpha: .1),
+                  minHeight: 5,
+                  borderRadius: BorderRadius.circular(5),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ConflictCard extends StatelessWidget {
+  const _ConflictCard({
+    required this.schedule,
+    required this.time,
+    required this.detail,
+  });
+  final String schedule;
+  final String time;
+  final String detail;
+  @override
+  Widget build(BuildContext context) => shad.Card(
+    borderColor: AppColors.amber.withValues(alpha: .25),
+    child: Padding(
+      padding: const EdgeInsets.all(15),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: AppColors.amber),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        schedule,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    const _StatusBadge(
+                      label: 'Conflict',
+                      color: AppColors.amber,
+                    ),
+                  ],
+                ),
+                Text(
+                  time,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(detail),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _HistoryRow extends StatelessWidget {
+  const _HistoryRow({
+    required this.time,
+    required this.app,
+    required this.duration,
+    required this.icon,
+  });
+  final String time;
+  final String app;
+  final String duration;
+  final IconData icon;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Row(
+      children: [
+        SizedBox(
+          width: 66,
+          child: Text(
+            time,
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        CircleAvatar(
+          radius: 17,
+          backgroundColor: AppColors.indigo.withValues(alpha: .1),
+          child: Icon(icon, size: 17, color: AppColors.indigo),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(app, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ),
+        Text(duration),
+      ],
+    ),
+  );
+}
+
+class _InterventionLevels extends StatelessWidget {
+  const _InterventionLevels();
+  @override
+  Widget build(BuildContext context) => shad.Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Graduated Intervention',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 12),
+          const Row(
+            children: [
+              Expanded(
+                child: _Level(
+                  label: 'Reminder',
+                  color: AppColors.teal,
+                  active: true,
+                ),
+              ),
+              _LevelLine(),
+              Expanded(
+                child: _Level(
+                  label: 'Warning',
+                  color: AppColors.amber,
+                  active: true,
+                ),
+              ),
+              _LevelLine(),
+              Expanded(
+                child: _Level(label: 'Strong', color: AppColors.coral),
+              ),
+              _LevelLine(),
+              Expanded(
+                child: _Level(label: 'Restrict', color: AppColors.indigo),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _Level extends StatelessWidget {
+  const _Level({required this.label, required this.color, this.active = false});
+  final String label;
+  final Color color;
+  final bool active;
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      Container(
+        width: 24,
+        height: 24,
+        decoration: BoxDecoration(
+          color: active ? color : color.withValues(alpha: .12),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          active ? Icons.check_rounded : Icons.circle_outlined,
+          color: active ? Colors.white : color,
+          size: 14,
+        ),
+      ),
+      const SizedBox(height: 5),
+      Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600),
+      ),
+    ],
+  );
+}
+
+class _LevelLine extends StatelessWidget {
+  const _LevelLine();
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Container(
+      height: 2,
+      color: Theme.of(context).colorScheme.outlineVariant,
+    ),
+  );
 }

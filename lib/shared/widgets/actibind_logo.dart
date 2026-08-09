@@ -12,7 +12,7 @@ class ActibindLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       image: true,
-      label: 'Actibind logo',
+      label: 'ActiBind logo',
       child: ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),
         child: Image.asset(

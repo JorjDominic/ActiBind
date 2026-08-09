@@ -63,4 +63,24 @@ void main() {
 
     await FamilyModeController.instance.setEnabled(false);
   });
+
+  testWidgets('Activity tabs render on a narrow screen', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(const App(home: HomePage()));
+    await tester.tap(find.byIcon(Icons.view_timeline_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('Current Activity'), findsNothing);
+    expect(find.text('CURRENT ACTIVITY'), findsOneWidget);
+
+    await tester.tap(find.text('Device Activity'));
+    await tester.pumpAndSettle();
+    expect(find.text('Schedule Conflicts'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

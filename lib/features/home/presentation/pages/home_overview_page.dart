@@ -1,5 +1,6 @@
 import 'package:actibind/core/constants/app_constants.dart';
 import 'package:actibind/core/theme/app_colors.dart';
+import 'package:actibind/shared/widgets/app_page_header.dart';
 import 'package:flutter/material.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
@@ -23,6 +24,11 @@ class HomeOverviewPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          const AppPageHeader(
+            title: 'Overview',
+            subtitle: 'Your focus, routines, and next actions at a glance',
+          ),
+          const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -60,7 +66,7 @@ class HomeOverviewPage extends StatelessWidget {
                         'Ready to focus, $displayName?',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 24,
+                          fontSize: 21,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -.5,
                         ),
@@ -122,9 +128,9 @@ class HomeOverviewPage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Quick Actions',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          const AppSectionHeader(
+            title: 'Quick Actions',
+            subtitle: 'Keep your day moving',
           ),
           const SizedBox(height: 12),
           _ActionCard(
@@ -132,6 +138,7 @@ class HomeOverviewPage extends StatelessWidget {
             title: 'Set a focus block',
             description:
                 'Schedule a new deep work session and limit distractions.',
+            color: AppColors.indigo,
           ),
           const SizedBox(height: 12),
           _ActionCard(
@@ -139,11 +146,12 @@ class HomeOverviewPage extends StatelessWidget {
             title: 'Review sleep hygiene',
             description:
                 'See late-night screen alerts and set a wind-down routine.',
+            color: AppColors.teal,
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Top Insights',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          const AppSectionHeader(
+            title: 'Top Insight',
+            subtitle: 'A useful pattern from your recent activity',
           ),
           const SizedBox(height: 12),
           Container(
@@ -158,9 +166,18 @@ class HomeOverviewPage extends StatelessWidget {
               border: Border.all(color: AppColors.teal.withValues(alpha: .18)),
               borderRadius: BorderRadius.circular(18),
             ),
-            child: const Text(
-              '✨ Your best focus window is 9:00–11:30 AM. Protect that time for your most important work.',
-              style: TextStyle(fontSize: 16),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.lightbulb_outline_rounded, color: AppColors.teal),
+                SizedBox(width: 11),
+                Expanded(
+                  child: Text(
+                    'Your best focus window is 9:00–11:30 AM. Protect that time for your most important work.',
+                    style: TextStyle(fontSize: 15, height: 1.4),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -207,7 +224,7 @@ class _SummaryTile extends StatelessWidget {
             Text(
               value,
               style: TextStyle(
-                fontSize: 25,
+                fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
@@ -231,52 +248,58 @@ class _ActionCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.description,
+    required this.color,
   });
 
   final IconData icon;
   final String title;
   final String description;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return shad.Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(
-                  context,
-                ).colorScheme.primary.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
+      borderColor: color.withValues(alpha: .18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () {},
+        child: Padding(
+          padding: const EdgeInsets.all(17),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color),
               ),
-              child: Icon(icon, color: Theme.of(context).colorScheme.primary),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+              const Icon(Icons.chevron_right_rounded, size: 20),
+            ],
+          ),
         ),
       ),
     );
