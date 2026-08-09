@@ -76,7 +76,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.view_timeline_rounded));
     await tester.pumpAndSettle();
     expect(find.text('Current Activity'), findsNothing);
-    expect(find.text('CURRENT ACTIVITY'), findsOneWidget);
+    expect(find.text('Scheduled activities'), findsOneWidget);
 
     await tester.tap(find.text('Device Activity'));
     await tester.pumpAndSettle();

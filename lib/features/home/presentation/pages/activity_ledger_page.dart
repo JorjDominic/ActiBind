@@ -1,5 +1,6 @@
 import 'package:actibind/core/constants/app_constants.dart';
 import 'package:actibind/core/theme/app_colors.dart';
+import 'package:actibind/features/activities/presentation/widgets/activity_schedule_view.dart';
 import 'package:actibind/shared/widgets/app_page_header.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -50,7 +51,7 @@ class _ActivityLedgerPageState extends State<ActivityLedgerPage> {
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 180),
             child: _section == 0
-                ? const _ScheduleView(key: ValueKey('schedule'))
+                ? const ActivityScheduleView(key: ValueKey('schedule'))
                 : const _DeviceActivityView(key: ValueKey('device')),
           ),
         ],
@@ -81,7 +82,7 @@ class _ScheduleItem {
 }
 
 class _ScheduleView extends StatefulWidget {
-  const _ScheduleView({super.key});
+  const _ScheduleView();
   @override
   State<_ScheduleView> createState() => _ScheduleViewState();
 }
