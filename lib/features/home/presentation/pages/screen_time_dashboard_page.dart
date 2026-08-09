@@ -64,9 +64,11 @@ class ScreenTimeDashboardPage extends StatelessWidget {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
+                  Text(
                     'Your strongest focus window is 9:00 AM–11:30 AM.',
-                    style: TextStyle(color: Colors.black54),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 18),
                   SizedBox(

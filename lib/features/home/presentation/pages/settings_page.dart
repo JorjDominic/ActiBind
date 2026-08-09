@@ -1,4 +1,5 @@
 import 'package:actibind/core/constants/app_constants.dart';
+import 'package:actibind/core/theme/theme_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
@@ -12,14 +13,58 @@ class SettingsPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          Text(
             'Manage your account, alerts, and app behavior from one place.',
-            style: TextStyle(fontSize: 16, color: Colors.black54),
+            style: TextStyle(
+              fontSize: 16,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 24),
           _SettingsSection(
             title: 'Preferences',
             children: [
+              const Text(
+                'Appearance',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 10),
+              AnimatedBuilder(
+                animation: ThemeController.instance,
+                builder: (context, _) => SegmentedButton<ThemeMode>(
+                  segments: const [
+                    ButtonSegment(
+                      value: ThemeMode.system,
+                      icon: Icon(Icons.brightness_auto_rounded),
+                      label: Text('System'),
+                    ),
+                    ButtonSegment(
+                      value: ThemeMode.light,
+                      icon: Icon(Icons.light_mode_rounded),
+                      label: Text('Light'),
+                    ),
+                    ButtonSegment(
+                      value: ThemeMode.dark,
+                      icon: Icon(Icons.dark_mode_rounded),
+                      label: Text('Dark'),
+                    ),
+                  ],
+                  selected: {ThemeController.instance.mode},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (selection) {
+                    ThemeController.instance.setMode(selection.first);
+                  },
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'System follows your device appearance automatically.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
               Material(
                 color: Colors.transparent,
                 child: SwitchListTile(
@@ -27,15 +72,6 @@ class SettingsPage extends StatelessWidget {
                   value: true,
                   onChanged: (_) {},
                   title: const Text('Daily summary notifications'),
-                ),
-              ),
-              Material(
-                color: Colors.transparent,
-                child: SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: false,
-                  onChanged: (_) {},
-                  title: const Text('Dark mode follow system'),
                 ),
               ),
             ],
@@ -122,7 +158,12 @@ class _SettingsTile extends StatelessWidget {
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
-            Text(subtitle, style: const TextStyle(color: Colors.black54)),
+            Text(
+              subtitle,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
       ),

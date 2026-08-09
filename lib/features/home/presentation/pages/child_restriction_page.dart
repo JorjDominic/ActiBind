@@ -12,9 +12,12 @@ class ChildRestrictionPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          Text(
             'Keep your child’s study and play routines balanced with scheduled restrictions and safe access controls.',
-            style: TextStyle(fontSize: 16, color: Colors.black54),
+            style: TextStyle(
+              fontSize: 16,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 24),
           _RestrictionCard(
@@ -106,7 +109,12 @@ class _RestrictionCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(subtitle, style: const TextStyle(color: Colors.black54)),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     progress,
@@ -141,7 +149,12 @@ class _ActivityTile extends StatelessWidget {
           children: [
             Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            Text(detail, style: const TextStyle(color: Colors.black54)),
+            Text(
+              detail,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
       ),

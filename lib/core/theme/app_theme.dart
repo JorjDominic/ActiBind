@@ -34,4 +34,39 @@ class AppTheme {
       useMaterial3: true,
     );
   }
+
+  static ThemeData get darkTheme {
+    final scheme = ColorScheme.fromSeed(
+      seedColor: AppColors.indigo,
+      brightness: Brightness.dark,
+      surface: const Color(0xFF151822),
+    );
+    return ThemeData(
+      colorScheme: scheme,
+      scaffoldBackgroundColor: const Color(0xFF0F1118),
+      appBarTheme: const AppBarTheme(
+        centerTitle: false,
+        backgroundColor: Color(0xFF0F1118),
+        foregroundColor: Color(0xFFF5F7FF),
+        elevation: 0,
+      ),
+      textTheme: const TextTheme(
+        headlineMedium: TextStyle(
+          color: Color(0xFFF5F7FF),
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.7,
+        ),
+        titleLarge: TextStyle(
+          color: Color(0xFFF5F7FF),
+          fontWeight: FontWeight.w700,
+        ),
+        titleMedium: TextStyle(
+          color: Color(0xFFF5F7FF),
+          fontWeight: FontWeight.w700,
+        ),
+        bodyMedium: TextStyle(color: Color(0xFFE6E8F0), height: 1.35),
+      ),
+      useMaterial3: true,
+    );
+  }
 }
