@@ -1,8 +1,10 @@
+import 'package:actibind/core/settings/family_mode_controller.dart';
 import 'package:actibind/features/home/presentation/pages/activity_ledger_page.dart';
-import 'package:actibind/features/home/presentation/pages/child_restriction_page.dart';
+import 'package:actibind/features/family/presentation/pages/family_page.dart';
 import 'package:actibind/features/home/presentation/pages/home_overview_page.dart';
 import 'package:actibind/features/home/presentation/pages/settings_page.dart';
 import 'package:actibind/features/home/presentation/pages/screen_time_dashboard_page.dart';
+import 'package:actibind/shared/widgets/actibind_logo.dart';
 import 'package:actibind/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
@@ -18,39 +20,44 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 0;
+  _Destination _selected = _Destination.home;
 
-  static const List<String> _titles = <String>[
-    'Home',
-    'Activity',
-    'Insights',
-    'Family',
-    'Settings',
-  ];
+  @override
+  void initState() {
+    super.initState();
+    FamilyModeController.instance.addListener(_handleFamilyModeChange);
+  }
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+  @override
+  void dispose() {
+    FamilyModeController.instance.removeListener(_handleFamilyModeChange);
+    super.dispose();
+  }
+
+  void _handleFamilyModeChange() {
+    if (!FamilyModeController.instance.enabled &&
+        _selected == _Destination.family) {
+      _selected = _Destination.home;
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _onItemTapped(_Destination destination) {
+    setState(() => _selected = destination);
   }
 
   @override
   Widget build(BuildContext context) {
-    final pages = <Widget>[
-      HomeOverviewPage(displayName: widget.displayName),
-      const ActivityLedgerPage(),
-      const ScreenTimeDashboardPage(),
-      const ChildRestrictionPage(),
-      const SettingsPage(),
-    ];
+    final page = switch (_selected) {
+      _Destination.home => HomeOverviewPage(displayName: widget.displayName),
+      _Destination.activity => const ActivityLedgerPage(),
+      _Destination.insights => const ScreenTimeDashboardPage(),
+      _Destination.family => const FamilyPage(),
+      _Destination.settings => const SettingsPage(),
+    };
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final navigation = _AppNavigation(
-          selectedIndex: _selectedIndex,
-          onSelected: _onItemTapped,
-        );
-
         return shad.Scaffold(
           headers: [
             SafeArea(
@@ -62,25 +69,11 @@ class _HomePageState extends State<HomePage> {
                 ),
                 child: Row(
                   children: [
-                    Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [AppColors.indigo, AppColors.teal],
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.track_changes,
-                        color: Colors.white,
-                        size: 17,
-                      ),
-                    ),
+                    const ActibindLogo(size: 30, borderRadius: 8),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        _titles[_selectedIndex],
+                        _selected.title,
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.w700),
                       ),
@@ -100,7 +93,17 @@ class _HomePageState extends State<HomePage> {
           ],
           footers: [
             const shad.Divider(),
-            SafeArea(top: false, child: navigation),
+            SafeArea(
+              top: false,
+              child: AnimatedBuilder(
+                animation: FamilyModeController.instance,
+                builder: (context, _) => _AppNavigation(
+                  selected: _selected,
+                  familyModeEnabled: FamilyModeController.instance.enabled,
+                  onSelected: _onItemTapped,
+                ),
+              ),
+            ),
           ],
           child: Align(
             alignment: Alignment.topCenter,
@@ -108,10 +111,7 @@ class _HomePageState extends State<HomePage> {
               constraints: const BoxConstraints(maxWidth: 960),
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 180),
-                child: KeyedSubtree(
-                  key: ValueKey(_selectedIndex),
-                  child: pages[_selectedIndex],
-                ),
+                child: KeyedSubtree(key: ValueKey(_selected), child: page),
               ),
             ),
           ),
@@ -122,43 +122,41 @@ class _HomePageState extends State<HomePage> {
 }
 
 class _AppNavigation extends StatelessWidget {
-  const _AppNavigation({required this.selectedIndex, required this.onSelected});
+  const _AppNavigation({
+    required this.selected,
+    required this.familyModeEnabled,
+    required this.onSelected,
+  });
 
-  final int selectedIndex;
-  final ValueChanged<int> onSelected;
+  final _Destination selected;
+  final bool familyModeEnabled;
+  final ValueChanged<_Destination> onSelected;
 
-  static const _items = [
-    ('Home', Icons.home_rounded),
-    ('Activity', Icons.view_timeline_rounded),
-    ('Insights', Icons.insights_rounded),
-    ('Family', Icons.family_restroom_rounded),
-    ('Settings', Icons.settings_rounded),
-  ];
-
-  static const _colors = [
-    AppColors.indigo,
-    AppColors.teal,
-    AppColors.amber,
-    AppColors.coral,
-    Color(0xFF667085),
+  List<_Destination> get _items => [
+    _Destination.home,
+    _Destination.activity,
+    _Destination.insights,
+    if (familyModeEnabled) _Destination.family,
+    _Destination.settings,
   ];
 
   @override
   Widget build(BuildContext context) {
     return shad.NavigationBar(
+      key: ValueKey(familyModeEnabled),
       direction: Axis.horizontal,
       expanded: true,
       expandedSize: 48,
       alignment: shad.NavigationBarAlignment.spaceAround,
       labelType: shad.NavigationLabelType.none,
-      selectedKey: ValueKey(selectedIndex),
-      onSelected: (key) => onSelected((key as ValueKey<int>).value),
+      selectedKey: ValueKey(selected),
+      onSelected: (key) => onSelected((key as ValueKey<_Destination>).value),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       children: [
-        for (var index = 0; index < _items.length; index++)
+        for (final item in _items)
           shad.NavigationItem(
-            key: ValueKey(index),
-            label: Text(_items[index].$1),
+            key: ValueKey(item),
+            label: Text(item.title),
             selectedStyle: const shad.ButtonStyle.ghost(
               density: shad.ButtonDensity.icon,
             ),
@@ -167,21 +165,33 @@ class _AppNavigation extends StatelessWidget {
               width: 34,
               height: 34,
               decoration: BoxDecoration(
-                color: selectedIndex == index
-                    ? _colors[index].withValues(alpha: .14)
+                color: selected == item
+                    ? item.color.withValues(alpha: .14)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(11),
               ),
               child: Icon(
-                _items[index].$2,
+                item.icon,
                 size: 20,
-                color: selectedIndex == index
-                    ? _colors[index]
-                    : AppColors.muted,
+                color: selected == item ? item.color : AppColors.muted,
               ),
             ),
           ),
       ],
     );
   }
+}
+
+enum _Destination {
+  home('Home', Icons.home_rounded, AppColors.indigo),
+  activity('Activity', Icons.view_timeline_rounded, AppColors.teal),
+  insights('Insights', Icons.insights_rounded, AppColors.amber),
+  family('Family', Icons.family_restroom_rounded, AppColors.coral),
+  settings('Settings', Icons.settings_rounded, Color(0xFF667085));
+
+  const _Destination(this.title, this.icon, this.color);
+
+  final String title;
+  final IconData icon;
+  final Color color;
 }

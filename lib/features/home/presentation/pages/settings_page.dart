@@ -1,4 +1,5 @@
 import 'package:actibind/core/constants/app_constants.dart';
+import 'package:actibind/core/settings/family_mode_controller.dart';
 import 'package:actibind/core/theme/theme_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
@@ -65,6 +66,23 @@ class SettingsPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
+              AnimatedBuilder(
+                animation: FamilyModeController.instance,
+                builder: (context, _) => Material(
+                  color: Colors.transparent,
+                  child: SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: FamilyModeController.instance.enabled,
+                    onChanged: FamilyModeController.instance.setEnabled,
+                    secondary: const Icon(Icons.family_restroom_rounded),
+                    title: const Text('Family mode'),
+                    subtitle: const Text(
+                      'Show family controls and restrictions in navigation',
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
               Material(
                 color: Colors.transparent,
                 child: SwitchListTile(

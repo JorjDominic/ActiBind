@@ -1,5 +1,6 @@
 import 'package:actibind/core/theme/app_colors.dart';
 import 'package:actibind/features/auth/services/auth_service.dart';
+import 'package:actibind/shared/widgets/actibind_logo.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -81,10 +82,8 @@ class _LoginPageState extends State<LoginPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(
-                      Icons.track_changes_rounded,
-                      color: AppColors.indigo,
-                      size: 48,
+                    const Center(
+                      child: ActibindLogo(size: 88, borderRadius: 22),
                     ),
                     const SizedBox(height: 16),
                     Text(

@@ -49,6 +49,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -60,6 +61,29 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  assets:
+    - "assets/icons/ActiBind Logo.png"
+    - "assets/icons/ActiBind Logo Dark Version.png"
+
+flutter_launcher_icons:
+  image_path: "assets/icons/ActiBind Logo.png"
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  adaptive_icon_background: "#F5F7FC"
+  adaptive_icon_foreground: "assets/icons/ActiBind Logo.png"
+  web:
+    generate: true
+    image_path: "assets/icons/ActiBind Logo.png"
+    background_color: "#F5F7FC"
+    theme_color: "#5B5CE2"
+  windows:
+    generate: true
+    image_path: "assets/icons/ActiBind Logo.png"
+    icon_size: 48
+  macos:
+    generate: true
+    image_path: "assets/icons/ActiBind Logo.png"
 
   # To add assets to your application, add an assets section, like this:
   # assets:
