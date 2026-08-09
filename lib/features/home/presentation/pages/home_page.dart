@@ -8,7 +8,9 @@ import 'package:flutter/material.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, this.onSignOut});
+
+  final Future<void> Function()? onSignOut;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -82,6 +84,13 @@ class _HomePageState extends State<HomePage> {
                             ?.copyWith(fontWeight: FontWeight.w700),
                       ),
                     ),
+                    if (widget.onSignOut != null)
+                      IconButton(
+                        tooltip: 'Sign out',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: widget.onSignOut,
+                        icon: const Icon(Icons.logout_rounded, size: 19),
+                      ),
                   ],
                 ),
               ),

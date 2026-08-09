@@ -10,10 +10,11 @@ import 'package:flutter/widgets.dart' show Size;
 import 'package:flutter/material.dart' show Icons;
 
 import 'package:actibind/app.dart';
+import 'package:actibind/features/home/presentation/pages/home_page.dart';
 
 void main() {
   testWidgets('App launches without errors', (WidgetTester tester) async {
-    await tester.pumpWidget(const App());
+    await tester.pumpWidget(const App(home: HomePage()));
     expect(find.byType(App), findsOneWidget);
   });
 
@@ -25,7 +26,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(const App());
+    await tester.pumpWidget(const App(home: HomePage()));
 
     for (final icon in [
       Icons.view_timeline_rounded,

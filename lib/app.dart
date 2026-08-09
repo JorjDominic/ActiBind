@@ -1,11 +1,13 @@
 import 'package:actibind/core/constants/app_constants.dart';
 import 'package:actibind/core/theme/app_theme.dart';
-import 'package:actibind/features/home/presentation/pages/home_page.dart';
+import 'package:actibind/features/auth/widgets/auth_gate.dart';
 import 'package:flutter/material.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
 class App extends StatelessWidget {
-  const App({super.key});
+  const App({super.key, this.home});
+
+  final Widget? home;
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +20,7 @@ class App extends StatelessWidget {
       ),
       materialTheme: AppTheme.lightTheme,
       scrollBehavior: const _ClampedScrollBehavior(),
-      home: const HomePage(),
+      home: home ?? const AuthGate(),
     );
   }
 }
