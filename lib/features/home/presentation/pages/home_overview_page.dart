@@ -4,7 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
 class HomeOverviewPage extends StatelessWidget {
-  const HomeOverviewPage({super.key});
+  const HomeOverviewPage({super.key, required this.displayName});
+
+  final String displayName;
+
+  String get _greeting {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12) return 'GOOD MORNING';
+    if (hour >= 12 && hour < 17) return 'GOOD AFTERNOON';
+    if (hour >= 17 && hour < 22) return 'GOOD EVENING';
+    return 'GOOD NIGHT';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,13 +42,13 @@ class HomeOverviewPage extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'GOOD MORNING',
-                        style: TextStyle(
+                        _greeting,
+                        style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
@@ -47,8 +57,8 @@ class HomeOverviewPage extends StatelessWidget {
                       ),
                       SizedBox(height: 8),
                       Text(
-                        'Ready to focus, Alex?',
-                        style: TextStyle(
+                        'Ready to focus, $displayName?',
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 24,
                           fontWeight: FontWeight.w800,
@@ -56,7 +66,7 @@ class HomeOverviewPage extends StatelessWidget {
                         ),
                       ),
                       SizedBox(height: 8),
-                      Text(
+                      const Text(
                         'You’re 72% toward today’s goal.',
                         style: TextStyle(color: Colors.white70),
                       ),

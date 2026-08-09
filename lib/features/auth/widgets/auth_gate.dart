@@ -12,7 +12,38 @@ class AuthGate extends StatelessWidget {
     return StreamBuilder<AuthState>(
       stream: AuthService.authStateChanges,
       builder: (context, snapshot) {
-        if (AuthService.currentSession != null) return const DashboardPage();
+        final session = AuthService.currentSession;
+        if (session != null) {
+          return _SessionValidation(key: ValueKey(session.accessToken));
+        }
+        return const LoginPage();
+      },
+    );
+  }
+}
+
+class _SessionValidation extends StatefulWidget {
+  const _SessionValidation({super.key});
+
+  @override
+  State<_SessionValidation> createState() => _SessionValidationState();
+}
+
+class _SessionValidationState extends State<_SessionValidation> {
+  late final Future<bool> _validation = AuthService.validateCurrentSession();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: _validation,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.data == true) return const DashboardPage();
         return const LoginPage();
       },
     );

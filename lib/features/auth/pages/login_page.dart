@@ -12,6 +12,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
@@ -19,6 +20,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -32,6 +34,7 @@ class _LoginPageState extends State<LoginPage> {
         final response = await AuthService.signUp(
           email: _emailController.text,
           password: _passwordController.text,
+          fullName: _nameController.text,
         );
         if (mounted && response.session == null) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -96,6 +99,33 @@ class _LoginPageState extends State<LoginPage> {
                       style: TextStyle(color: AppColors.muted),
                     ),
                     const SizedBox(height: 28),
+                    if (_isRegisterMode) ...[
+                      TextFormField(
+                        controller: _nameController,
+                        textCapitalization: TextCapitalization.words,
+                        autofillHints: const [AutofillHints.name],
+                        decoration: const InputDecoration(
+                          labelText: 'What should we call you?',
+                          hintText: 'Your preferred name',
+                          prefixIcon: Icon(Icons.person_outline_rounded),
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (!_isRegisterMode) {
+                            return null;
+                          }
+                          final name = value?.trim() ?? '';
+                          if (name.isEmpty) {
+                            return 'Tell us what to call you.';
+                          }
+                          if (name.length < 2) {
+                            return 'Enter at least 2 characters.';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,

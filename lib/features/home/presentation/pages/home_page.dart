@@ -8,8 +8,9 @@ import 'package:flutter/material.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key, this.onSignOut});
+  const HomePage({super.key, this.displayName = 'there', this.onSignOut});
 
+  final String displayName;
   final Future<void> Function()? onSignOut;
 
   @override
@@ -18,14 +19,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
-
-  static const List<Widget> _pages = <Widget>[
-    HomeOverviewPage(),
-    ActivityLedgerPage(),
-    ScreenTimeDashboardPage(),
-    ChildRestrictionPage(),
-    SettingsPage(),
-  ];
 
   static const List<String> _titles = <String>[
     'Home',
@@ -43,6 +36,14 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final pages = <Widget>[
+      HomeOverviewPage(displayName: widget.displayName),
+      const ActivityLedgerPage(),
+      const ScreenTimeDashboardPage(),
+      const ChildRestrictionPage(),
+      const SettingsPage(),
+    ];
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final navigation = _AppNavigation(
@@ -109,7 +110,7 @@ class _HomePageState extends State<HomePage> {
                 duration: const Duration(milliseconds: 180),
                 child: KeyedSubtree(
                   key: ValueKey(_selectedIndex),
-                  child: _pages[_selectedIndex],
+                  child: pages[_selectedIndex],
                 ),
               ),
             ),

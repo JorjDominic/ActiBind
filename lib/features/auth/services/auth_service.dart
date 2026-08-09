@@ -11,6 +11,21 @@ class AuthService {
   static Stream<AuthState> get authStateChanges =>
       _supabase.auth.onAuthStateChange;
 
+  static Future<bool> validateCurrentSession() async {
+    if (currentSession == null) return false;
+
+    try {
+      final response = await _supabase.auth.getUser();
+      return response.user != null;
+    } on AuthException {
+      await _supabase.auth.signOut(scope: SignOutScope.local);
+      return false;
+    } catch (_) {
+      // Keep a valid cached session when the device is temporarily offline.
+      return currentSession != null;
+    }
+  }
+
   static Future<AuthResponse> signUp({
     required String email,
     required String password,
