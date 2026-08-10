@@ -1,6 +1,9 @@
 import 'package:actibind/core/constants/app_constants.dart';
 import 'package:actibind/core/theme/app_colors.dart';
 import 'package:actibind/features/activities/presentation/widgets/activity_schedule_view.dart';
+import 'package:actibind/features/devices/models/registered_device.dart';
+import 'package:actibind/features/devices/presentation/pages/pc_device_activity_page.dart';
+import 'package:actibind/features/devices/services/registered_device_service.dart';
 import 'package:actibind/shared/widgets/app_page_header.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -934,12 +937,134 @@ class _DeviceActivityView extends StatefulWidget {
 }
 
 class _DeviceActivityViewState extends State<_DeviceActivityView> {
+  static const _deviceRegistrationEnabled = false;
   String range = 'Today';
   bool warningVisible = true;
+  List<RegisteredDevice> devices = const [];
+  bool devicesLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDevices();
+  }
+
+  Future<void> _loadDevices() async {
+    try {
+      final result = await RegisteredDeviceService.getDevices();
+      if (mounted) setState(() => devices = result);
+    } catch (_) {
+      // The sample usage dashboard remains available if sync is unavailable.
+    } finally {
+      if (mounted) setState(() => devicesLoading = false);
+    }
+  }
+
+  Future<void> _registerDevice() async {
+    final draft = await showModalBottomSheet<_DeviceDraft>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => const _RegisterDeviceSheet(),
+    );
+    if (draft == null || !mounted) return;
+    try {
+      await RegisteredDeviceService.createDevice(
+        name: draft.name,
+        type: draft.type,
+        platform: draft.platform,
+      );
+      await _loadDevices();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not register device: $error')),
+        );
+      }
+    }
+  }
+
+  Future<void> _removeDevice(RegisteredDevice device) async {
+    try {
+      await RegisteredDeviceService.deleteDevice(device.id);
+      await _loadDevices();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not remove device: $error')),
+        );
+      }
+    }
+  }
+
+  void _openDevice(RegisteredDevice device) {
+    if (device.isPc) {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => PcDeviceActivityPage(device: device)),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Showing activity for ${device.name}.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
+      Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Registered devices',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                Text(
+                  'Personal devices monitored by ActiBind',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          FilledButton.icon(
+            onPressed: _deviceRegistrationEnabled ? _registerDevice : null,
+            icon: const Icon(Icons.lock_outline_rounded),
+            label: const Text('Register'),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      if (devicesLoading)
+        const LinearProgressIndicator()
+      else if (devices.isEmpty)
+        _NoDevicesCard(
+          onRegister: _deviceRegistrationEnabled ? _registerDevice : null,
+        )
+      else
+        SizedBox(
+          height: 92,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: devices.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final device = devices[index];
+              return _RegisteredDeviceCard(
+                device: device,
+                onTap: () => _openDevice(device),
+                onRemove: () => _removeDevice(device),
+              );
+            },
+          ),
+        ),
+      const SizedBox(height: 18),
       if (warningVisible) ...[
         _WarningCard(
           onDismiss: () => setState(() => warningVisible = false),
@@ -1083,6 +1208,248 @@ class _DeviceActivityViewState extends State<_DeviceActivityView> {
       ),
     );
   }
+}
+
+class _DeviceDraft {
+  const _DeviceDraft({
+    required this.name,
+    required this.type,
+    required this.platform,
+  });
+  final String name;
+  final String type;
+  final String platform;
+}
+
+class _RegisterDeviceSheet extends StatefulWidget {
+  const _RegisterDeviceSheet();
+  @override
+  State<_RegisterDeviceSheet> createState() => _RegisterDeviceSheetState();
+}
+
+class _RegisterDeviceSheetState extends State<_RegisterDeviceSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _name = TextEditingController();
+  String _type = 'mobile';
+  String _platform = 'Android';
+
+  List<String> get _platforms => _type == 'pc'
+      ? const ['Windows', 'macOS', 'Linux', 'Other']
+      : const ['Android', 'iOS', 'Other'];
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  void _changeType(String type) {
+    setState(() {
+      _type = type;
+      _platform = type == 'pc' ? 'Windows' : 'Android';
+    });
+  }
+
+  void _save() {
+    if (!_formKey.currentState!.validate()) return;
+    Navigator.pop(
+      context,
+      _DeviceDraft(name: _name.text.trim(), type: _type, platform: _platform),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.fromLTRB(
+      20,
+      16,
+      20,
+      MediaQuery.viewInsetsOf(context).bottom + 20,
+    ),
+    child: Form(
+      key: _formKey,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Register a device',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'This is for your own activity monitoring and is separate from Family Mode.',
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 18),
+            SegmentedButton<String>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(
+                  value: 'mobile',
+                  icon: Icon(Icons.phone_android_rounded),
+                  label: Text('Mobile'),
+                ),
+                ButtonSegment(
+                  value: 'pc',
+                  icon: Icon(Icons.computer_rounded),
+                  label: Text('PC'),
+                ),
+              ],
+              selected: {_type},
+              onSelectionChanged: (value) => _changeType(value.first),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _name,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'Device name',
+                hintText: _type == 'pc' ? 'My laptop' : 'My phone',
+                prefixIcon: Icon(
+                  _type == 'pc'
+                      ? Icons.laptop_rounded
+                      : Icons.smartphone_rounded,
+                ),
+                border: const OutlineInputBorder(),
+              ),
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Enter a device name'
+                  : null,
+            ),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              initialValue: _platform,
+              key: ValueKey(_type),
+              decoration: const InputDecoration(
+                labelText: 'Platform',
+                border: OutlineInputBorder(),
+              ),
+              items: _platforms
+                  .map(
+                    (value) =>
+                        DropdownMenuItem(value: value, child: Text(value)),
+                  )
+                  .toList(),
+              onChanged: (value) =>
+                  setState(() => _platform = value ?? _platform),
+            ),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: _save,
+              icon: const Icon(Icons.add_link_rounded),
+              label: const Text('Register Device'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _NoDevicesCard extends StatelessWidget {
+  const _NoDevicesCard({this.onRegister});
+  final VoidCallback? onRegister;
+  @override
+  Widget build(BuildContext context) => shad.Card(
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          const Icon(Icons.devices_other_rounded, color: AppColors.indigo),
+          const SizedBox(width: 11),
+          const Expanded(
+            child: Text(
+              'Register a PC or mobile device to track its activity.',
+              style: TextStyle(fontSize: 13),
+            ),
+          ),
+          TextButton.icon(
+            onPressed: onRegister,
+            icon: const Icon(Icons.lock_outline_rounded, size: 16),
+            label: const Text('Locked'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _RegisteredDeviceCard extends StatelessWidget {
+  const _RegisteredDeviceCard({
+    required this.device,
+    required this.onTap,
+    required this.onRemove,
+  });
+  final RegisteredDevice device;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 220,
+    child: shad.Card(
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.indigo.withValues(alpha: .1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  device.isPc
+                      ? Icons.computer_rounded
+                      : Icons.smartphone_rounded,
+                  color: AppColors.indigo,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      device.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      '${device.platform} · ${device.isPc ? 'PC' : 'Mobile'}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuButton<String>(
+                tooltip: 'Device actions',
+                onSelected: (_) => onRemove(),
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'remove', child: Text('Remove')),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _WarningCard extends StatelessWidget {
