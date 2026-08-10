@@ -148,6 +148,7 @@ class HomeOverviewPage extends StatelessWidget {
             builder: (context, _) => GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
+              padding: EdgeInsets.zero,
               physics: const NeverScrollableScrollPhysics(),
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,

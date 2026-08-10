@@ -183,7 +183,7 @@ class _NotificationsButton extends StatelessWidget {
       icon: Stack(
         clipBehavior: Clip.none,
         children: [
-          const Icon(Icons.notifications_none_rounded, size: 20),
+          const Icon(Icons.notifications_none_rounded, size: 24),
           Positioned(
             right: -1,
             top: -1,
@@ -373,7 +373,7 @@ class _AppNavigation extends StatelessWidget {
               ),
               child: Icon(
                 item.icon,
-                size: 20,
+                size: 24,
                 color: selected == item ? item.color : AppColors.muted,
               ),
             ),
