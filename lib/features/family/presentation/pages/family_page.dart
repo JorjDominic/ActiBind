@@ -189,7 +189,7 @@ class _FamilyPageState extends State<FamilyPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Same-Device Child Mode',
+                          'Hand over this device safely',
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -198,7 +198,7 @@ class _FamilyPageState extends State<FamilyPage> {
                         ),
                         const SizedBox(height: 5),
                         Text(
-                          'Temporarily restrict this device before giving it to a child.',
+                          'Apply a child’s restrictions while they use this device.',
                           style: TextStyle(
                             fontSize: 13,
                             height: 1.35,
@@ -219,7 +219,7 @@ class _FamilyPageState extends State<FamilyPage> {
                                 ),
                           icon: const Icon(Icons.lock_clock_rounded),
                           label: const Text(
-                            'Start Child Mode',
+                            'Set up Child Mode',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,

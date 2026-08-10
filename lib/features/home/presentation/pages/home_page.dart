@@ -76,7 +76,10 @@ class _HomePageState extends State<HomePage> {
                       child: Text(
                         AppConstants.appName,
                         style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w700),
+                            ?.copyWith(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                            ),
                       ),
                     ),
                     const _NotificationsButton(),

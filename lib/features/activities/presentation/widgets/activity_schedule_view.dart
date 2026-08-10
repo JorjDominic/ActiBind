@@ -489,7 +489,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'No activities scheduled',
+            'Your day is open',
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -498,7 +498,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Add an activity for this date to begin planning your day.',
+            'Add an activity to start building today’s schedule.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,

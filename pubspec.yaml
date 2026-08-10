@@ -65,6 +65,13 @@ flutter:
   assets:
     - "assets/icons/ActiBind Logo.png"
     - "assets/icons/ActiBind Logo Dark Version.png"
+  fonts:
+    - family: Sora
+      fonts:
+        - asset: assets/fonts/Sora-Variable.ttf
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Variable.ttf
 
 flutter_launcher_icons:
   image_path: "assets/icons/ActiBind Logo.png"

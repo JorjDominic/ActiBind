@@ -63,7 +63,7 @@ class HomeOverviewPage extends StatelessWidget {
                       ),
                       SizedBox(height: 8),
                       Text(
-                        'Ready to focus, $displayName?',
+                        'Make today count, $displayName',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 21,
@@ -73,7 +73,7 @@ class HomeOverviewPage extends StatelessWidget {
                       ),
                       SizedBox(height: 8),
                       const Text(
-                        'You’re 72% toward today’s goal.',
+                        'You’ve completed 72% of your focus goal.',
                         style: TextStyle(color: Colors.white70),
                       ),
                     ],
@@ -135,23 +135,23 @@ class HomeOverviewPage extends StatelessWidget {
           const SizedBox(height: 12),
           _ActionCard(
             icon: Icons.lock_clock,
-            title: 'Set a focus block',
+            title: 'Start a focus session',
             description:
-                'Schedule a new deep work session and limit distractions.',
+                'Block distracting apps and protect time for meaningful work.',
             color: AppColors.indigo,
           ),
           const SizedBox(height: 12),
           _ActionCard(
             icon: Icons.nightlight_round,
-            title: 'Review sleep hygiene',
+            title: 'Improve your wind-down',
             description:
-                'See late-night screen alerts and set a wind-down routine.',
+                'Review nighttime activity and build a healthier sleep routine.',
             color: AppColors.teal,
           ),
           const SizedBox(height: 24),
           const AppSectionHeader(
-            title: 'Top Insight',
-            subtitle: 'A useful pattern from your recent activity',
+            title: 'Your latest insight',
+            subtitle: 'A pattern worth knowing from your recent activity',
           ),
           const SizedBox(height: 12),
           Container(
