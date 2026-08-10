@@ -92,16 +92,18 @@ class HomeOverviewPage extends StatelessWidget {
                 ),
                 const SizedBox(width: 16),
                 const SizedBox(
-                  width: 68,
-                  height: 68,
+                  width: 80,
+                  height: 80,
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      CircularProgressIndicator(
-                        value: .72,
-                        strokeWidth: 6,
-                        color: Colors.white,
-                        backgroundColor: Colors.white24,
+                      Positioned.fill(
+                        child: CircularProgressIndicator(
+                          value: .72,
+                          strokeWidth: 9,
+                          color: Colors.white,
+                          backgroundColor: Colors.white24,
+                        ),
                       ),
                       Text(
                         '72%',
