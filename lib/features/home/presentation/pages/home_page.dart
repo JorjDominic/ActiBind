@@ -5,6 +5,8 @@ import 'package:actibind/features/family/presentation/pages/family_page.dart';
 import 'package:actibind/features/home/presentation/pages/home_overview_page.dart';
 import 'package:actibind/features/home/presentation/pages/settings_page.dart';
 import 'package:actibind/features/home/presentation/pages/screen_time_dashboard_page.dart';
+import 'package:actibind/features/activities/presentation/widgets/activity_schedule_view.dart';
+import 'package:actibind/features/activities/services/activity_service.dart';
 import 'package:actibind/shared/widgets/actibind_logo.dart';
 import 'package:actibind/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
@@ -47,10 +49,59 @@ class _HomePageState extends State<HomePage> {
     setState(() => _selected = destination);
   }
 
+  Future<void> _createQuickActivity({
+    required String name,
+    required String category,
+  }) async {
+    final draft = await showModalBottomSheet<ActivityDraft>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => ActivityFormSheet(
+        initialDate: DateTime.now(),
+        initialName: name,
+        initialCategory: category,
+      ),
+    );
+    if (draft == null || !mounted) return;
+
+    try {
+      await ActivityService.createActivity(
+        name: draft.name,
+        category: draft.category,
+        startsAt: draft.startsAt,
+        endsAt: draft.endsAt,
+        repeat: draft.repeat,
+        monitorUsage: draft.monitorUsage,
+        warnConflicts: draft.warnConflicts,
+      );
+      if (!mounted) return;
+      setState(() => _selected = _Destination.activity);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${draft.name} added to your schedule.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not create activity: $error')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final page = switch (_selected) {
-      _Destination.home => HomeOverviewPage(displayName: widget.displayName),
+      _Destination.home => HomeOverviewPage(
+        displayName: widget.displayName,
+        onStartFocus: () =>
+            _createQuickActivity(name: 'Focus Session', category: 'Focus'),
+        onImproveWindDown: () =>
+            _createQuickActivity(name: 'Wind-down Routine', category: 'Sleep'),
+        onPlanWorkout: () =>
+            _createQuickActivity(name: 'Workout', category: 'Exercise'),
+        onPlanPersonal: () =>
+            _createQuickActivity(name: 'Personal Task', category: 'Personal'),
+      ),
       _Destination.activity => const ActivityLedgerPage(),
       _Destination.insights => const ScreenTimeDashboardPage(),
       _Destination.family => const FamilyPage(),

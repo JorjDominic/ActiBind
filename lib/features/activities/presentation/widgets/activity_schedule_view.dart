@@ -281,7 +281,10 @@ class _CalendarStrip extends StatelessWidget {
                 Expanded(
                   child: Text(
                     DateFormat('MMMM y').format(selectedDate),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
                 IconButton(
@@ -316,7 +319,7 @@ class _CalendarStrip extends StatelessWidget {
                             Text(
                               DateFormat('E').format(date).substring(0, 1),
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 9,
                                 color: selected
                                     ? colors.onPrimary
                                     : colors.onSurfaceVariant,
@@ -325,6 +328,7 @@ class _CalendarStrip extends StatelessWidget {
                             Text(
                               '${date.day}',
                               style: TextStyle(
+                                fontSize: 13,
                                 fontWeight: FontWeight.w700,
                                 color: selected ? colors.onPrimary : null,
                               ),
@@ -577,9 +581,17 @@ class ActivityDraft {
 }
 
 class ActivityFormSheet extends StatefulWidget {
-  const ActivityFormSheet({super.key, this.activity, this.initialDate});
+  const ActivityFormSheet({
+    super.key,
+    this.activity,
+    this.initialDate,
+    this.initialName,
+    this.initialCategory,
+  });
   final Activity? activity;
   final DateTime? initialDate;
+  final String? initialName;
+  final String? initialCategory;
 
   @override
   State<ActivityFormSheet> createState() => _ActivityFormSheetState();
@@ -600,8 +612,8 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
   void initState() {
     super.initState();
     final item = widget.activity;
-    _name = TextEditingController(text: item?.name ?? '');
-    _category = item?.category ?? 'Focus';
+    _name = TextEditingController(text: item?.name ?? widget.initialName ?? '');
+    _category = item?.category ?? widget.initialCategory ?? 'Focus';
     _repeat = item?.repeat ?? 'Never';
     _date = DateUtils.dateOnly(
       item?.startsAt ?? widget.initialDate ?? DateTime.now(),

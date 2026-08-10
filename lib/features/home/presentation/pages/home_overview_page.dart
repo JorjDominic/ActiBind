@@ -5,9 +5,20 @@ import 'package:flutter/material.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
 class HomeOverviewPage extends StatelessWidget {
-  const HomeOverviewPage({super.key, required this.displayName});
+  const HomeOverviewPage({
+    super.key,
+    required this.displayName,
+    required this.onStartFocus,
+    required this.onImproveWindDown,
+    required this.onPlanWorkout,
+    required this.onPlanPersonal,
+  });
 
   final String displayName;
+  final VoidCallback onStartFocus;
+  final VoidCallback onImproveWindDown;
+  final VoidCallback onPlanWorkout;
+  final VoidCallback onPlanPersonal;
 
   String get _greeting {
     final hour = DateTime.now().hour;
@@ -133,20 +144,41 @@ class HomeOverviewPage extends StatelessWidget {
             subtitle: 'Keep your day moving',
           ),
           const SizedBox(height: 12),
-          _ActionCard(
-            icon: Icons.lock_clock,
-            title: 'Start a focus session',
-            description:
-                'Block distracting apps and protect time for meaningful work.',
-            color: AppColors.indigo,
-          ),
-          const SizedBox(height: 12),
-          _ActionCard(
-            icon: Icons.nightlight_round,
-            title: 'Improve your wind-down',
-            description:
-                'Review nighttime activity and build a healthier sleep routine.',
-            color: AppColors.teal,
+          LayoutBuilder(
+            builder: (context, _) => GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              mainAxisExtent: 76,
+              children: [
+                _ActionCard(
+                  icon: Icons.lock_clock,
+                  title: 'Focus time',
+                  color: AppColors.indigo,
+                  onTap: onStartFocus,
+                ),
+                _ActionCard(
+                  icon: Icons.nightlight_round,
+                  title: 'Wind-down',
+                  color: AppColors.teal,
+                  onTap: onImproveWindDown,
+                ),
+                _ActionCard(
+                  icon: Icons.fitness_center_rounded,
+                  title: 'Workout',
+                  color: AppColors.coral,
+                  onTap: onPlanWorkout,
+                ),
+                _ActionCard(
+                  icon: Icons.checklist_rounded,
+                  title: 'Personal task',
+                  color: AppColors.amber,
+                  onTap: onPlanPersonal,
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 24),
           const AppSectionHeader(
@@ -247,59 +279,58 @@ class _ActionCard extends StatelessWidget {
   const _ActionCard({
     required this.icon,
     required this.title,
-    required this.description,
     required this.color,
+    required this.onTap,
   });
 
   final IconData icon;
   final String title;
-  final String description;
   final Color color;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return shad.Card(
-      borderColor: color.withValues(alpha: .18),
+    return Material(
+      color: color.withValues(alpha: .035),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: color.withValues(alpha: .22)),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: () {},
+        onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(17),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: color),
+                child: Icon(icon, size: 19, color: color),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 10),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        fontSize: 13,
-                        height: 1.3,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    height: 1.2,
+                  ),
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, size: 20),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ],
           ),
         ),

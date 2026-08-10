@@ -28,74 +28,106 @@ class SettingsPage extends StatelessWidget {
             icon: Icons.tune_rounded,
             color: AppColors.indigo,
             children: [
-              const Text(
-                'Appearance',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 10),
-              AnimatedBuilder(
-                animation: ThemeController.instance,
-                builder: (context, _) => Row(
+              _SettingsSurface(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: _AppearanceOption(
-                        mode: ThemeMode.system,
-                        label: 'System',
-                        icon: Icons.brightness_auto_rounded,
+                    const Text(
+                      'Appearance',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: _AppearanceOption(
-                        mode: ThemeMode.light,
-                        label: 'Light',
-                        icon: Icons.light_mode_rounded,
+                    const SizedBox(height: 10),
+                    AnimatedBuilder(
+                      animation: ThemeController.instance,
+                      builder: (context, _) => Row(
+                        children: [
+                          Expanded(
+                            child: _AppearanceOption(
+                              mode: ThemeMode.system,
+                              label: 'System',
+                              icon: Icons.brightness_auto_rounded,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _AppearanceOption(
+                              mode: ThemeMode.light,
+                              label: 'Light',
+                              icon: Icons.light_mode_rounded,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _AppearanceOption(
+                              mode: ThemeMode.dark,
+                              label: 'Dark',
+                              icon: Icons.dark_mode_rounded,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: _AppearanceOption(
-                        mode: ThemeMode.dark,
-                        label: 'Dark',
-                        icon: Icons.dark_mode_rounded,
+                    const SizedBox(height: 8),
+                    Text(
+                      'System follows your device appearance automatically.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.35,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                'System follows your device appearance automatically.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
               AnimatedBuilder(
                 animation: FamilyModeController.instance,
-                builder: (context, _) => Material(
-                  color: Colors.transparent,
+                builder: (context, _) => _SettingsSurface(
+                  padding: EdgeInsets.zero,
                   child: SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                     value: FamilyModeController.instance.enabled,
                     onChanged: FamilyModeController.instance.setEnabled,
-                    secondary: const Icon(Icons.family_restroom_rounded),
-                    title: const Text('Family mode'),
+                    secondary: const _SettingIcon(
+                      icon: Icons.family_restroom_rounded,
+                      color: AppColors.indigo,
+                    ),
+                    title: const Text(
+                      'Family mode',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     subtitle: const Text(
                       'Show family controls and restrictions in navigation',
+                      style: TextStyle(fontSize: 12, height: 1.3),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
-              Material(
-                color: Colors.transparent,
+              const SizedBox(height: 10),
+              _SettingsSurface(
+                padding: EdgeInsets.zero,
                 child: SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                   value: true,
                   onChanged: (_) {},
-                  title: const Text('Daily summary notifications'),
+                  secondary: const _SettingIcon(
+                    icon: Icons.notifications_active_outlined,
+                    color: AppColors.teal,
+                  ),
+                  title: const Text(
+                    'Daily summary',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: const Text(
+                    'Receive a daily overview of your focus and activity',
+                    style: TextStyle(fontSize: 12, height: 1.3),
+                  ),
                 ),
               ),
             ],
@@ -111,7 +143,7 @@ class SettingsPage extends StatelessWidget {
                 title: 'Profile',
                 subtitle: 'Update your name, photo, and email',
               ),
-              SizedBox(height: 12),
+              SizedBox(height: 8),
               _SettingsTile(
                 icon: Icons.security_rounded,
                 title: 'Security',
@@ -130,7 +162,7 @@ class SettingsPage extends StatelessWidget {
                 title: 'Help center',
                 subtitle: 'Find guides and troubleshooting tips',
               ),
-              SizedBox(height: 12),
+              SizedBox(height: 8),
               _SettingsTile(
                 icon: Icons.info_outline_rounded,
                 title: 'About ActiBind',
@@ -296,38 +328,29 @@ class _SettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return shad.Card(
-      borderColor: color.withValues(alpha: .2),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: .12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, size: 19, color: color),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: .12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 19, color: color),
             ),
-            const SizedBox(height: 12),
-            ...children,
+            const SizedBox(width: 10),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
           ],
         ),
-      ),
+        const SizedBox(height: 12),
+        ...children,
+      ],
     );
   }
 }
@@ -345,15 +368,21 @@ class _SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return shad.Card(
+    final colors = Theme.of(context).colorScheme;
+    return Material(
+      color: colors.surfaceContainerHighest.withValues(alpha: .35),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: colors.outlineVariant.withValues(alpha: .7)),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
         onTap: () {},
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              Icon(icon, color: Theme.of(context).colorScheme.primary),
+              _SettingIcon(icon: icon, color: colors.primary),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -377,11 +406,57 @@ class _SettingsTile extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, size: 20),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 19,
+                color: colors.onSurfaceVariant,
+              ),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+class _SettingsSurface extends StatelessWidget {
+  const _SettingsSurface({
+    required this.child,
+    this.padding = const EdgeInsets.all(12),
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Material(
+      color: colors.surfaceContainerHighest.withValues(alpha: .3),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: colors.outlineVariant.withValues(alpha: .65)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(padding: padding, child: child),
+    );
+  }
+}
+
+class _SettingIcon extends StatelessWidget {
+  const _SettingIcon({required this.icon, required this.color});
+
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 36,
+    height: 36,
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: .11),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Icon(icon, size: 18, color: color),
+  );
 }
