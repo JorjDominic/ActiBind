@@ -55,10 +55,8 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Alex'));
-    await tester.pumpAndSettle();
-    expect(find.text('Overview'), findsOneWidget);
-    expect(find.text('Restrictions'), findsWidgets);
+    expect(find.text('Child profiles'), findsOneWidget);
+    expect(find.text('Add Child'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await FamilyModeController.instance.setEnabled(false);

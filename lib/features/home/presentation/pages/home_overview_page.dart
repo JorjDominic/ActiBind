@@ -283,14 +283,16 @@ class _ActionCard extends StatelessWidget {
                     Text(
                       title,
                       style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       description,
                       style: TextStyle(
+                        fontSize: 13,
+                        height: 1.3,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),

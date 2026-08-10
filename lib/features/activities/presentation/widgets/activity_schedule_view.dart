@@ -490,17 +490,30 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             'No activities scheduled',
-            style: Theme.of(context).textTheme.titleMedium,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              height: 1.25,
+            ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Add an activity for this date to begin planning your day.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.35,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 14),
           OutlinedButton.icon(
             onPressed: onAdd,
             icon: const Icon(Icons.add_rounded),
-            label: const Text('Add activity'),
+            label: const Text(
+              'Add activity',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
@@ -521,9 +534,23 @@ class _ErrorState extends StatelessWidget {
         children: [
           const Icon(Icons.cloud_off_rounded, color: AppColors.coral),
           const SizedBox(height: 8),
-          Text(message, textAlign: TextAlign.center),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.35,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: 10),
-          OutlinedButton(onPressed: onRetry, child: const Text('Try again')),
+          OutlinedButton(
+            onPressed: onRetry,
+            child: const Text(
+              'Try again',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
         ],
       ),
     ),
