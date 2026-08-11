@@ -4,8 +4,13 @@ import 'package:actibind/core/constants/app_constants.dart';
 import 'package:actibind/core/theme/app_colors.dart';
 import 'package:actibind/features/activities/models/app_usage.dart';
 import 'package:actibind/features/activities/services/usage_stats_service.dart';
+import 'package:actibind/features/weather/models/current_weather.dart';
+import 'package:actibind/features/weather/services/weather_service.dart';
+import 'package:actibind/features/weather/services/reverse_geocoding_service.dart';
 import 'package:actibind/shared/widgets/app_page_header.dart';
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
 class HomeOverviewPage extends StatelessWidget {
@@ -45,14 +50,14 @@ class HomeOverviewPage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [AppColors.indigo, Color(0xFF7779EA), AppColors.teal],
               ),
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
                   color: AppColors.indigo.withValues(alpha: .22),
@@ -71,40 +76,40 @@ class HomeOverviewPage extends StatelessWidget {
                         _greeting,
                         style: const TextStyle(
                           color: Colors.white70,
-                          fontSize: 11,
+                          fontSize: 9,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.4,
                         ),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 4),
                       Text(
                         'Make today count, $displayName',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 21,
+                          fontSize: 19,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -.5,
                         ),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 4),
                       const Text(
                         'You’ve completed 72% of your focus goal.',
-                        style: TextStyle(color: Colors.white70),
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 const SizedBox(
-                  width: 80,
-                  height: 80,
+                  width: 64,
+                  height: 64,
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
                       Positioned.fill(
                         child: CircularProgressIndicator(
                           value: .72,
-                          strokeWidth: 9,
+                          strokeWidth: 6,
                           color: Colors.white,
                           backgroundColor: Colors.white24,
                         ),
@@ -114,6 +119,7 @@ class HomeOverviewPage extends StatelessWidget {
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w800,
+                          fontSize: 12,
                         ),
                       ),
                     ],
@@ -122,6 +128,8 @@ class HomeOverviewPage extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 18),
+          const _WeatherCard(),
           const SizedBox(height: 18),
           const Row(
             children: [
@@ -224,6 +232,293 @@ class HomeOverviewPage extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _WeatherCard extends StatefulWidget {
+  const _WeatherCard();
+
+  @override
+  State<_WeatherCard> createState() => _WeatherCardState();
+}
+
+class _WeatherCardState extends State<_WeatherCard> {
+  CurrentWeather? _weather;
+  bool _loading = true;
+  bool _failed = false;
+  bool _usingFallbackLocation = false;
+  String _locationName = 'Manila';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _failed = false;
+    });
+    Position? position;
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        throw Exception('Location services are disabled.');
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        throw Exception('Location permission was denied.');
+      }
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      final recentEnough =
+          lastKnown != null &&
+          DateTime.now().difference(lastKnown.timestamp) <
+              const Duration(minutes: 30) &&
+          lastKnown.accuracy <= 1000;
+      if (recentEnough) {
+        position = lastKnown;
+      } else {
+        try {
+          position = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              timeLimit: Duration(seconds: 20),
+            ),
+          );
+        } catch (_) {
+          position = lastKnown;
+        }
+      }
+    } catch (_) {
+      // Devices without a GPS fix still receive useful Manila weather.
+    }
+    try {
+      final usingFallback = position == null;
+      final latitude = position?.latitude ?? 14.5995;
+      final longitude = position?.longitude ?? 120.9842;
+      final results = await Future.wait<Object?>([
+        WeatherService.getCurrentWeather(
+          latitude: latitude,
+          longitude: longitude,
+        ),
+        position == null
+            ? Future<String?>.value('Manila')
+            : _resolveLocationName(position),
+      ]);
+      final weather = results[0] as CurrentWeather;
+      final locationName =
+          results[1] as String? ??
+          '${latitude.toStringAsFixed(2)}, ${longitude.toStringAsFixed(2)}';
+      if (mounted) {
+        setState(() {
+          _weather = weather;
+          _usingFallbackLocation = usingFallback;
+          _locationName = locationName;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final weather = _weather;
+    return shad.Card(
+      filled: true,
+      fillColor: AppColors.teal.withValues(alpha: .06),
+      borderColor: AppColors.teal.withValues(alpha: .18),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+        child: _loading && weather == null
+            ? const LinearProgressIndicator()
+            : _failed && weather == null
+            ? Row(
+                children: [
+                  const Icon(Icons.cloud_off_rounded, color: AppColors.muted),
+                  const SizedBox(width: 10),
+                  const Expanded(child: Text('Weather is unavailable.')),
+                  IconButton(
+                    tooltip: 'Retry weather',
+                    onPressed: _load,
+                    icon: const Icon(Icons.refresh_rounded),
+                  ),
+                ],
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: AppColors.teal.withValues(alpha: .13),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          _weatherIcon(weather!),
+                          color: AppColors.teal,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${_usingFallbackLocation ? '$_locationName fallback' : _locationName} · ${_condition(weather.weatherCode)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              'Feels like ${weather.apparentTemperature.round()}° · '
+                              '${weather.humidity}% humidity · '
+                              '${weather.windSpeed.round()} km/h wind',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${weather.temperature.round()}°',
+                        style: const TextStyle(
+                          fontSize: 23,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Divider(
+                    height: 1,
+                    color: AppColors.teal.withValues(alpha: .15),
+                  ),
+                  const SizedBox(height: 7),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.lightbulb_outline_rounded,
+                        size: 16,
+                        color: AppColors.teal,
+                      ),
+                      const SizedBox(width: 7),
+                      Expanded(
+                        child: Text(
+                          _insight(weather),
+                          style: TextStyle(
+                            fontSize: 11,
+                            height: 1.3,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  static String _condition(int code) {
+    if (code == 0) return 'Clear';
+    if (code <= 3) return 'Partly cloudy';
+    if (code == 45 || code == 48) return 'Foggy';
+    if (code <= 57) return 'Drizzle';
+    if (code <= 67) return 'Rain';
+    if (code <= 77) return 'Snow';
+    if (code <= 82) return 'Rain showers';
+    if (code <= 86) return 'Snow showers';
+    return 'Thunderstorms';
+  }
+
+  static Future<String> _resolveLocationName(Position position) async {
+    try {
+      final onlineName = await ReverseGeocodingService.getCity(
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+      if (onlineName != null) return onlineName;
+    } catch (_) {
+      // Fall through to the platform geocoder.
+    }
+    try {
+      final places = await Geocoding(locale: const Locale('en'))
+          .placemarkFromCoordinates(position.latitude, position.longitude)
+          .timeout(const Duration(seconds: 5));
+      if (places.isNotEmpty) {
+        final place = places.first;
+        for (final value in [
+          place.locality,
+          place.subAdministrativeArea,
+          place.administrativeArea,
+        ]) {
+          if (value != null && value.trim().isNotEmpty) return value.trim();
+        }
+      }
+    } catch (_) {
+      // Coordinates remain visible when the platform geocoder is unavailable.
+    }
+    return '${position.latitude.toStringAsFixed(2)}, '
+        '${position.longitude.toStringAsFixed(2)}';
+  }
+
+  static String _insight(CurrentWeather weather) {
+    final code = weather.weatherCode;
+    if (code >= 95) {
+      return 'Thunderstorms are likely—use an indoor Focus session and postpone outdoor Workout activities.';
+    }
+    if (code >= 51 && code <= 82) {
+      return 'Rain is in the area—move your Workout indoors and add travel time to Personal tasks.';
+    }
+    if (weather.temperature >= 33 || weather.apparentTemperature >= 36) {
+      return 'Heat stress is possible—schedule Workout activities earlier and keep Focus sessions indoors.';
+    }
+    if (weather.windSpeed >= 35) {
+      return 'Strong winds may disrupt outdoor tasks—switch your Workout or Personal activity indoors.';
+    }
+    if (code <= 1 && weather.isDay) {
+      return 'Clear conditions make this a good window for your Workout or outdoor Personal tasks.';
+    }
+    if (!weather.isDay) {
+      return 'Conditions suit a Wind-down routine; finish outdoor Personal tasks before it gets later.';
+    }
+    return 'Conditions are comfortable—your planned Focus, Workout, and Personal activities need minimal adjustment.';
+  }
+
+  static IconData _weatherIcon(CurrentWeather weather) {
+    final code = weather.weatherCode;
+    if (code == 0) {
+      return weather.isDay ? Icons.wb_sunny_rounded : Icons.nights_stay_rounded;
+    }
+    if (code <= 3) return Icons.cloud_queue_rounded;
+    if (code == 45 || code == 48) return Icons.blur_on_rounded;
+    if (code <= 57) return Icons.grain_rounded;
+    if (code <= 82) return Icons.water_drop_rounded;
+    return Icons.thunderstorm_rounded;
   }
 }
 
@@ -418,7 +713,7 @@ class _SummaryTile extends StatelessWidget {
       fillColor: color.withValues(alpha: .07),
       borderColor: color.withValues(alpha: .16),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -427,26 +722,26 @@ class _SummaryTile extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 13,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: AppColors.muted,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 2),
             Text(
               value,
               style: TextStyle(
-                fontSize: 22,
+                fontSize: 17,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 1),
             Text(
               subtitle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, color: AppColors.muted),
+              style: const TextStyle(fontSize: 9, color: AppColors.muted),
             ),
           ],
         ),
