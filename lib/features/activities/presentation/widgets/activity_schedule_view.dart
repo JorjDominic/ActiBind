@@ -1,6 +1,8 @@
 import 'package:actibind/core/theme/app_colors.dart';
 import 'package:actibind/features/activities/models/activity.dart';
+import 'package:actibind/features/activities/models/public_holiday.dart';
 import 'package:actibind/features/activities/services/activity_service.dart';
+import 'package:actibind/features/activities/services/holiday_service.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
@@ -15,6 +17,7 @@ class ActivityScheduleView extends StatefulWidget {
 class _ActivityScheduleViewState extends State<ActivityScheduleView> {
   DateTime _selectedDate = DateUtils.dateOnly(DateTime.now());
   List<Activity> _activities = const [];
+  List<PublicHoliday> _holidays = const [];
   bool _loading = true;
   String? _error;
 
@@ -32,23 +35,37 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
       .where((item) => DateUtils.isSameDay(item.startsAt, _selectedDate))
       .toList();
 
+  PublicHoliday? get _selectedHoliday {
+    for (final holiday in _holidays) {
+      if (DateUtils.isSameDay(holiday.date, _selectedDate)) return holiday;
+    }
+    return null;
+  }
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
       _error = null;
     });
+    final activitiesFuture = ActivityService.getActivities(
+      from: _weekStart,
+      to: _weekStart.add(const Duration(days: 7)),
+    );
+    final holidaysFuture = HolidayService.getHolidays(
+      year: _selectedDate.year,
+    ).then<List<PublicHoliday>?>((items) => items, onError: (_) => null);
     try {
-      final items = await ActivityService.getActivities(
-        from: _weekStart,
-        to: _weekStart.add(const Duration(days: 7)),
-      );
-      if (!mounted) return;
-      setState(() => _activities = items);
+      final items = await activitiesFuture;
+      if (mounted) setState(() => _activities = items);
     } catch (error) {
-      if (!mounted) return;
-      setState(() => _error = _friendlyError(error));
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _error = _friendlyError(error));
+    }
+    final holidays = await holidaysFuture;
+    if (mounted && holidays != null) {
+      setState(() => _holidays = holidays);
+    }
+    if (mounted) {
+      setState(() => _loading = false);
     }
   }
 
@@ -204,10 +221,15 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
         _CalendarStrip(
           selectedDate: _selectedDate,
           activities: _activities,
+          holidays: _holidays,
           onSelected: _selectDate,
           onOpenCalendar: _chooseDate,
         ),
         const SizedBox(height: 18),
+        if (_selectedHoliday case final holiday?) ...[
+          _HolidayCard(holiday: holiday),
+          const SizedBox(height: 18),
+        ],
         Row(
           children: [
             Expanded(
@@ -251,12 +273,14 @@ class _CalendarStrip extends StatelessWidget {
   const _CalendarStrip({
     required this.selectedDate,
     required this.activities,
+    required this.holidays,
     required this.onSelected,
     required this.onOpenCalendar,
   });
 
   final DateTime selectedDate;
   final List<Activity> activities;
+  final List<PublicHoliday> holidays;
   final ValueChanged<DateTime> onSelected;
   final VoidCallback onOpenCalendar;
 
@@ -301,6 +325,9 @@ class _CalendarStrip extends StatelessWidget {
                 final hasItems = activities.any(
                   (item) => DateUtils.isSameDay(item.startsAt, date),
                 );
+                final isHoliday = holidays.any(
+                  (holiday) => DateUtils.isSameDay(holiday.date, date),
+                );
                 return Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -337,7 +364,11 @@ class _CalendarStrip extends StatelessWidget {
                               width: 4,
                               height: 4,
                               decoration: BoxDecoration(
-                                color: hasItems
+                                color: isHoliday
+                                    ? (selected
+                                          ? colors.onPrimary
+                                          : AppColors.amber)
+                                    : hasItems
                                     ? (selected
                                           ? colors.onPrimary
                                           : AppColors.coral)
@@ -358,6 +389,60 @@ class _CalendarStrip extends StatelessWidget {
       ),
     );
   }
+}
+
+class _HolidayCard extends StatelessWidget {
+  const _HolidayCard({required this.holiday});
+
+  final PublicHoliday holiday;
+
+  @override
+  Widget build(BuildContext context) => shad.Card(
+    filled: true,
+    fillColor: AppColors.amber.withValues(alpha: .08),
+    borderColor: AppColors.amber.withValues(alpha: .25),
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.amber.withValues(alpha: .16),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.celebration_rounded,
+              color: AppColors.amber,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  holiday.name,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  holiday.nationalHoliday
+                      ? 'Philippines public holiday'
+                      : 'Regional public holiday',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _ActivityCard extends StatelessWidget {
