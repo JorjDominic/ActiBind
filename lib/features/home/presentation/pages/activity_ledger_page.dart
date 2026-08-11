@@ -1,6 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:actibind/core/constants/app_constants.dart';
 import 'package:actibind/core/theme/app_colors.dart';
 import 'package:actibind/features/activities/presentation/widgets/activity_schedule_view.dart';
+import 'package:actibind/features/activities/models/app_usage.dart';
+import 'package:actibind/features/activities/services/usage_stats_service.dart';
 import 'package:actibind/features/devices/models/registered_device.dart';
 import 'package:actibind/features/devices/presentation/pages/pc_device_activity_page.dart';
 import 'package:actibind/features/devices/services/registered_device_service.dart';
@@ -936,17 +940,73 @@ class _DeviceActivityView extends StatefulWidget {
   State<_DeviceActivityView> createState() => _DeviceActivityViewState();
 }
 
-class _DeviceActivityViewState extends State<_DeviceActivityView> {
+class _DeviceActivityViewState extends State<_DeviceActivityView>
+    with WidgetsBindingObserver {
   static const _deviceRegistrationEnabled = false;
   String range = 'Today';
-  bool warningVisible = true;
   List<RegisteredDevice> devices = const [];
   bool devicesLoading = true;
+  List<AppUsage> usage = const [];
+  bool usageLoading = true;
+  bool usagePermissionGranted = false;
+  String? usageError;
+  bool showAllUsage = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadDevices();
+    _loadUsage();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadUsage();
+    }
+  }
+
+  Future<void> _loadUsage() async {
+    if (!UsageStatsService.isSupported) {
+      if (mounted) setState(() => usageLoading = false);
+      return;
+    }
+    setState(() {
+      usageLoading = true;
+      usageError = null;
+    });
+    try {
+      final allowed = await UsageStatsService.hasPermission();
+      var rows = const <AppUsage>[];
+      if (allowed) {
+        final now = DateTime.now();
+        final start = range == 'Week'
+            ? now.subtract(const Duration(days: 7))
+            : DateTime(now.year, now.month, now.day);
+        rows = await UsageStatsService.getUsage(start: start, end: now);
+      }
+      if (mounted) {
+        setState(() {
+          usagePermissionGranted = allowed;
+          usage = rows;
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => usageError = error.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => usageLoading = false);
+      }
+    }
   }
 
   Future<void> _loadDevices() async {
@@ -1065,10 +1125,15 @@ class _DeviceActivityViewState extends State<_DeviceActivityView> {
           ),
         ),
       const SizedBox(height: 18),
-      if (warningVisible) ...[
-        _WarningCard(
-          onDismiss: () => setState(() => warningVisible = false),
-          onView: () => _showUsageDetail(context, 'TikTok'),
+      if (!UsageStatsService.isSupported) ...[
+        const _UsageAccessCard(
+          message: 'Device activity is available on Android.',
+        ),
+        const SizedBox(height: 16),
+      ] else if (!usagePermissionGranted && !usageLoading) ...[
+        _UsageAccessCard(
+          message: 'Allow usage access to show your real app activity here.',
+          onPressed: UsageStatsService.openPermissionSettings,
         ),
         const SizedBox(height: 16),
       ],
@@ -1078,7 +1143,7 @@ class _DeviceActivityViewState extends State<_DeviceActivityView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Today', style: Theme.of(context).textTheme.titleLarge),
+                Text(range, style: Theme.of(context).textTheme.titleLarge),
                 Text(
                   'What you actually did',
                   style: TextStyle(
@@ -1096,53 +1161,56 @@ class _DeviceActivityViewState extends State<_DeviceActivityView> {
               ButtonSegment(value: 'Week', label: Text('Week')),
             ],
             selected: {range},
-            onSelectionChanged: (value) => setState(() => range = value.first),
+            onSelectionChanged: (value) {
+              setState(() {
+                range = value.first;
+                showAllUsage = false;
+              });
+              _loadUsage();
+            },
           ),
         ],
       ),
       const SizedBox(height: 14),
-      if (range == 'Week') const _WeeklyUsage() else const _UsageSummary(),
-      const SizedBox(height: 16),
-      const _UsageChart(),
+      if (usageLoading)
+        const LinearProgressIndicator()
+      else if (usageError != null)
+        Text('Could not load device activity: $usageError')
+      else
+        _UsageSummary(usage: usage),
       const SizedBox(height: 22),
       Text('App Usage', style: Theme.of(context).textTheme.titleLarge),
       const SizedBox(height: 8),
-      _AppUsageRow(
-        name: 'YouTube',
-        duration: '1h 12m',
-        progress: .78,
-        icon: Icons.play_circle_outline_rounded,
-        color: const Color(0xFFE05252),
-        onTap: () => _showUsageDetail(context, 'YouTube'),
-      ),
-      _AppUsageRow(
-        name: 'TikTok',
-        duration: '52m',
-        progress: .57,
-        icon: Icons.music_note_rounded,
-        color: AppColors.coral,
-        onTap: () => _showUsageDetail(context, 'TikTok'),
-      ),
-      _AppUsageRow(
-        name: 'Chrome',
-        duration: '46m',
-        progress: .50,
-        icon: Icons.language_rounded,
-        color: const Color(0xFF4285F4),
-        onTap: () => _showUsageDetail(context, 'Chrome'),
-      ),
-      _AppUsageRow(
-        name: 'Messenger',
-        duration: '31m',
-        progress: .34,
-        icon: Icons.chat_bubble_outline_rounded,
-        color: AppColors.indigo,
-        onTap: () => _showUsageDetail(context, 'Messenger'),
-      ),
-      Align(
-        alignment: Alignment.centerLeft,
-        child: TextButton(onPressed: () {}, child: const Text('View All Apps')),
-      ),
+      if (!usageLoading && usagePermissionGranted && usage.isEmpty)
+        const Text('No app usage was recorded for this period.'),
+      for (final item in usage.take(showAllUsage ? usage.length : 10))
+        _AppUsageRow(
+          name: item.appName,
+          duration: _formatDuration(item.foreground),
+          progress: usage.first.foreground.inMilliseconds == 0
+              ? 0
+              : item.foreground.inMilliseconds /
+                    usage.first.foreground.inMilliseconds,
+          icon: Icons.apps_rounded,
+          iconBytes: item.iconBytes,
+          color: AppColors.indigo,
+          onTap: () => _showUsageDetail(context, item),
+        ),
+      if (usage.length > 10)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () => setState(() => showAllUsage = !showAllUsage),
+            icon: Icon(
+              showAllUsage
+                  ? Icons.expand_less_rounded
+                  : Icons.expand_more_rounded,
+            ),
+            label: Text(
+              showAllUsage ? 'See less' : 'See more (${usage.length - 10})',
+            ),
+          ),
+        ),
       const SizedBox(height: 12),
       Text('Schedule Conflicts', style: Theme.of(context).textTheme.titleLarge),
       const SizedBox(height: 10),
@@ -1177,7 +1245,7 @@ class _DeviceActivityViewState extends State<_DeviceActivityView> {
     ],
   );
 
-  void _showUsageDetail(BuildContext context, String app) {
+  void _showUsageDetail(BuildContext context, AppUsage app) {
     showModalBottomSheet<void>(
       context: context,
       useSafeArea: true,
@@ -1192,21 +1260,32 @@ class _DeviceActivityViewState extends State<_DeviceActivityView> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 18),
-            _DetailRow(label: 'App', value: app),
-            const _DetailRow(label: 'Used', value: '7:34 PM – 7:56 PM'),
-            const _DetailRow(label: 'Duration', value: '22 minutes'),
-            const _DetailRow(label: 'Scheduled Activity', value: 'Study'),
-            const _DetailRow(label: 'Schedule Status', value: 'Conflict'),
+            _DetailRow(label: 'App', value: app.appName),
+            _DetailRow(label: 'Package', value: app.packageName),
+            _DetailRow(
+              label: 'Foreground time',
+              value: _formatDuration(app.foreground),
+            ),
+            _DetailRow(
+              label: 'Last used',
+              value: DateFormat('MMM d, h:mm a').format(app.lastTimeUsed),
+            ),
             const SizedBox(height: 16),
             FilledButton.icon(
               onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.event_note_rounded),
-              label: const Text('View Related Schedule'),
+              icon: const Icon(Icons.close_rounded),
+              label: const Text('Close'),
             ),
           ],
         ),
       ),
     );
+  }
+
+  static String _formatDuration(Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    return hours == 0 ? '${minutes}m' : '${hours}h ${minutes}m';
   }
 }
 
@@ -1452,6 +1531,33 @@ class _RegisteredDeviceCard extends StatelessWidget {
   );
 }
 
+class _UsageAccessCard extends StatelessWidget {
+  const _UsageAccessCard({required this.message, this.onPressed});
+  final String message;
+  final Future<void> Function()? onPressed;
+
+  @override
+  Widget build(BuildContext context) => shad.Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          const Icon(Icons.query_stats_rounded, color: AppColors.indigo),
+          const SizedBox(width: 12),
+          Expanded(child: Text(message)),
+          if (onPressed != null)
+            FilledButton(
+              onPressed: () => onPressed!(),
+              child: const Text('Allow access'),
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
+// Kept for the future schedule-conflict integration.
+// ignore: unused_element
 class _WarningCard extends StatelessWidget {
   const _WarningCard({required this.onDismiss, required this.onView});
   final VoidCallback onDismiss;
@@ -1511,14 +1617,36 @@ class _WarningCard extends StatelessWidget {
 }
 
 class _UsageSummary extends StatelessWidget {
-  const _UsageSummary();
+  const _UsageSummary({required this.usage});
+  final List<AppUsage> usage;
   @override
   Widget build(BuildContext context) {
-    const values = [
-      ('4h 18m', 'Screen Time', Icons.timer_rounded, AppColors.indigo),
-      ('YouTube', 'Most Used', Icons.play_circle_rounded, AppColors.coral),
-      ('12', 'Apps Used', Icons.apps_rounded, AppColors.teal),
-      ('3', 'Conflicts', Icons.warning_rounded, AppColors.amber),
+    final total = usage.fold<Duration>(
+      Duration.zero,
+      (sum, item) => sum + item.foreground,
+    );
+    final values = <(String, String, IconData, Color, Uint8List?)>[
+      (
+        _DeviceActivityViewState._formatDuration(total),
+        'Screen Time',
+        Icons.timer_rounded,
+        AppColors.indigo,
+        null,
+      ),
+      (
+        usage.isEmpty ? '—' : usage.first.appName,
+        'Most Used',
+        Icons.apps_rounded,
+        AppColors.coral,
+        usage.isEmpty ? null : usage.first.iconBytes,
+      ),
+      (
+        '${usage.length}',
+        'Apps Used',
+        Icons.apps_rounded,
+        AppColors.teal,
+        null,
+      ),
     ];
     return shad.Card(
       child: Padding(
@@ -1533,7 +1661,20 @@ class _UsageSummary extends StatelessWidget {
                   width: (constraints.maxWidth - 10) / 2,
                   child: Row(
                     children: [
-                      Icon(value.$3, color: value.$4, size: 20),
+                      if (value.$5 == null)
+                        Icon(value.$3, color: value.$4, size: 20)
+                      else
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(5),
+                          child: Image.memory(
+                            value.$5!,
+                            width: 24,
+                            height: 24,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) =>
+                                Icon(value.$3, color: value.$4, size: 20),
+                          ),
+                        ),
                       const SizedBox(width: 9),
                       Expanded(
                         child: Column(
@@ -1541,10 +1682,12 @@ class _UsageSummary extends StatelessWidget {
                           children: [
                             Text(
                               value.$1,
-                              maxLines: 1,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 18,
+                                fontSize: 16,
                                 fontWeight: FontWeight.w800,
+                                height: 1.1,
                               ),
                             ),
                             Text(
@@ -1570,6 +1713,7 @@ class _UsageSummary extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _WeeklyUsage extends StatelessWidget {
   const _WeeklyUsage();
   @override
@@ -1620,6 +1764,7 @@ class _WeekUsageRow extends StatelessWidget {
   );
 }
 
+// ignore: unused_element
 class _UsageChart extends StatelessWidget {
   const _UsageChart();
   @override
@@ -1685,6 +1830,7 @@ class _AppUsageRow extends StatelessWidget {
     required this.duration,
     required this.progress,
     required this.icon,
+    this.iconBytes,
     required this.color,
     required this.onTap,
   });
@@ -1692,6 +1838,7 @@ class _AppUsageRow extends StatelessWidget {
   final String duration;
   final double progress;
   final IconData icon;
+  final Uint8List? iconBytes;
   final Color color;
   final VoidCallback onTap;
   @override
@@ -1709,7 +1856,17 @@ class _AppUsageRow extends StatelessWidget {
               color: color.withValues(alpha: .12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: color, size: 20),
+            child: iconBytes == null
+                ? Icon(icon, color: color, size: 20)
+                : ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.memory(
+                      iconBytes!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) =>
+                          Icon(icon, color: color, size: 20),
+                    ),
+                  ),
           ),
           const SizedBox(width: 11),
           Expanded(
