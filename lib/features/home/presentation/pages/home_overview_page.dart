@@ -1,5 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:actibind/core/constants/app_constants.dart';
 import 'package:actibind/core/theme/app_colors.dart';
+import 'package:actibind/features/activities/models/app_usage.dart';
+import 'package:actibind/features/activities/services/usage_stats_service.dart';
 import 'package:actibind/shared/widgets/app_page_header.dart';
 import 'package:flutter/material.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
@@ -184,6 +188,8 @@ class HomeOverviewPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
+          const _TopActivity(),
+          const SizedBox(height: 24),
           const AppSectionHeader(
             title: 'Your latest insight',
             subtitle: 'A pattern worth knowing from your recent activity',
@@ -219,6 +225,177 @@ class HomeOverviewPage extends StatelessWidget {
       ),
     );
   }
+}
+
+class _TopActivity extends StatefulWidget {
+  const _TopActivity();
+
+  @override
+  State<_TopActivity> createState() => _TopActivityState();
+}
+
+class _TopActivityState extends State<_TopActivity>
+    with WidgetsBindingObserver {
+  List<AppUsage> _usage = const [];
+  bool _loading = true;
+  bool _allowed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    if (!UsageStatsService.isSupported) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+    try {
+      final allowed = await UsageStatsService.hasPermission();
+      var items = const <AppUsage>[];
+      if (allowed) {
+        final now = DateTime.now();
+        items = await UsageStatsService.getUsage(
+          start: DateTime(now.year, now.month, now.day),
+          end: now,
+        );
+      }
+      if (mounted) {
+        setState(() {
+          _allowed = allowed;
+          _usage = items.take(3).toList(growable: false);
+        });
+      }
+    } catch (_) {
+      // Keep the overview usable if native usage data is temporarily unavailable.
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      const AppSectionHeader(
+        title: 'Top Activity',
+        subtitle: 'Your three most-used apps today',
+      ),
+      const SizedBox(height: 12),
+      if (_loading)
+        const LinearProgressIndicator()
+      else if (!_allowed)
+        Text(
+          UsageStatsService.isSupported
+              ? 'Allow usage access in Activity to see your top apps.'
+              : 'Top activity is available on Android.',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        )
+      else if (_usage.isEmpty)
+        const Text('No app activity recorded today.')
+      else
+        shad.Card(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            child: Column(
+              children: [
+                for (var index = 0; index < _usage.length; index++) ...[
+                  _TopActivityRow(rank: index + 1, usage: _usage[index]),
+                  if (index != _usage.length - 1) const Divider(height: 1),
+                ],
+              ],
+            ),
+          ),
+        ),
+    ],
+  );
+}
+
+class _TopActivityRow extends StatelessWidget {
+  const _TopActivityRow({required this.rank, required this.usage});
+
+  final int rank;
+  final AppUsage usage;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 10),
+    child: Row(
+      children: [
+        SizedBox(
+          width: 24,
+          child: Text(
+            '$rank',
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+        ),
+        _HomeAppIcon(bytes: usage.iconBytes),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Text(
+            usage.appName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(_duration(usage.foreground)),
+      ],
+    ),
+  );
+
+  static String _duration(Duration value) {
+    final hours = value.inHours;
+    final minutes = value.inMinutes.remainder(60);
+    return hours == 0 ? '${minutes}m' : '${hours}h ${minutes}m';
+  }
+}
+
+class _HomeAppIcon extends StatelessWidget {
+  const _HomeAppIcon({required this.bytes});
+  final Uint8List? bytes;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 38,
+    height: 38,
+    decoration: BoxDecoration(
+      color: AppColors.indigo.withValues(alpha: .1),
+      borderRadius: BorderRadius.circular(9),
+    ),
+    child: bytes == null
+        ? const Icon(Icons.apps_rounded, size: 20, color: AppColors.indigo)
+        : ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.memory(
+              bytes!,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => const Icon(
+                Icons.apps_rounded,
+                size: 20,
+                color: AppColors.indigo,
+              ),
+            ),
+          ),
+  );
 }
 
 class _SummaryTile extends StatelessWidget {

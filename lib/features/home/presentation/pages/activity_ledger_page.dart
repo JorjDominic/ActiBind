@@ -951,6 +951,7 @@ class _DeviceActivityViewState extends State<_DeviceActivityView>
   bool usagePermissionGranted = false;
   String? usageError;
   bool showAllUsage = false;
+  bool showAllRecent = false;
 
   @override
   void initState() {
@@ -1007,6 +1008,12 @@ class _DeviceActivityViewState extends State<_DeviceActivityView>
         setState(() => usageLoading = false);
       }
     }
+  }
+
+  List<AppUsage> get _recentUsage {
+    final recent = [...usage]
+      ..sort((a, b) => b.lastTimeUsed.compareTo(a.lastTimeUsed));
+    return recent;
   }
 
   Future<void> _loadDevices() async {
@@ -1165,6 +1172,7 @@ class _DeviceActivityViewState extends State<_DeviceActivityView>
               setState(() {
                 range = value.first;
                 showAllUsage = false;
+                showAllRecent = false;
               });
               _loadUsage();
             },
@@ -1183,7 +1191,7 @@ class _DeviceActivityViewState extends State<_DeviceActivityView>
       const SizedBox(height: 8),
       if (!usageLoading && usagePermissionGranted && usage.isEmpty)
         const Text('No app usage was recorded for this period.'),
-      for (final item in usage.take(showAllUsage ? usage.length : 10))
+      for (final item in usage.take(showAllUsage ? usage.length : 5))
         _AppUsageRow(
           name: item.appName,
           duration: _formatDuration(item.foreground),
@@ -1196,7 +1204,7 @@ class _DeviceActivityViewState extends State<_DeviceActivityView>
           color: AppColors.indigo,
           onTap: () => _showUsageDetail(context, item),
         ),
-      if (usage.length > 10)
+      if (usage.length > 5)
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
@@ -1207,41 +1215,46 @@ class _DeviceActivityViewState extends State<_DeviceActivityView>
                   : Icons.expand_more_rounded,
             ),
             label: Text(
-              showAllUsage ? 'See less' : 'See more (${usage.length - 10})',
+              showAllUsage ? 'See less' : 'See more (${usage.length - 5})',
             ),
           ),
         ),
-      const SizedBox(height: 12),
-      Text('Schedule Conflicts', style: Theme.of(context).textTheme.titleLarge),
-      const SizedBox(height: 10),
-      const _ConflictCard(
-        schedule: 'Study',
-        time: '7:00 PM – 9:00 PM',
-        detail: 'TikTok used for 22 minutes during Study schedule',
-      ),
-      const SizedBox(height: 10),
-      const _ConflictCard(
-        schedule: 'Sleep',
-        time: '10:00 PM – 6:00 AM',
-        detail: 'YouTube used at 11:24 PM for 18 minutes',
-      ),
       const SizedBox(height: 20),
-      Text('Activity History', style: Theme.of(context).textTheme.titleLarge),
+      Text('Recent Activity', style: Theme.of(context).textTheme.titleLarge),
       const SizedBox(height: 8),
-      for (final item in const [
-        ('8:40 PM', 'YouTube', '24 min', Icons.play_circle_outline_rounded),
-        ('8:05 PM', 'TikTok', '18 min', Icons.music_note_rounded),
-        ('7:30 PM', 'Chrome', '31 min', Icons.language_rounded),
-        ('6:45 PM', 'Messenger', '12 min', Icons.chat_bubble_outline_rounded),
-      ])
+      if (!usageLoading && usagePermissionGranted && _recentUsage.isEmpty)
+        const Text('No recent app activity was recorded.'),
+      for (final item in _recentUsage.take(
+        showAllRecent ? _recentUsage.length : 3,
+      ))
         _HistoryRow(
-          time: item.$1,
-          app: item.$2,
-          duration: item.$3,
-          icon: item.$4,
+          time: range == 'Week'
+              ? DateFormat('EEE, h:mm a').format(item.lastTimeUsed)
+              : DateFormat('h:mm a').format(item.lastTimeUsed),
+          app: item.appName,
+          duration: _formatDuration(item.foreground),
+          icon: Icons.apps_rounded,
+          iconBytes: item.iconBytes,
+          onTap: () => _showUsageDetail(context, item),
+        ),
+      if (_recentUsage.length > 3)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () => setState(() => showAllRecent = !showAllRecent),
+            icon: Icon(
+              showAllRecent
+                  ? Icons.expand_less_rounded
+                  : Icons.expand_more_rounded,
+            ),
+            label: Text(
+              showAllRecent
+                  ? 'See less'
+                  : 'See more (${_recentUsage.length - 3})',
+            ),
+          ),
         ),
       const SizedBox(height: 14),
-      const _InterventionLevels(),
     ],
   );
 
@@ -1255,9 +1268,17 @@ class _DeviceActivityViewState extends State<_DeviceActivityView>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Activity Detail',
-              style: Theme.of(context).textTheme.titleLarge,
+            Row(
+              children: [
+                _AppIcon(iconBytes: app.iconBytes, size: 42, borderRadius: 10),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    app.appName,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 18),
             _DetailRow(label: 'App', value: app.appName),
@@ -1528,6 +1549,39 @@ class _RegisteredDeviceCard extends StatelessWidget {
         ),
       ),
     ),
+  );
+}
+
+class _AppIcon extends StatelessWidget {
+  const _AppIcon({
+    required this.iconBytes,
+    required this.size,
+    required this.borderRadius,
+  });
+
+  final Uint8List? iconBytes;
+  final double size;
+  final double borderRadius;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      color: AppColors.indigo.withValues(alpha: .1),
+      borderRadius: BorderRadius.circular(borderRadius),
+    ),
+    child: iconBytes == null
+        ? const Icon(Icons.apps_rounded, color: AppColors.indigo)
+        : ClipRRect(
+            borderRadius: BorderRadius.circular(borderRadius),
+            child: Image.memory(
+              iconBytes!,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) =>
+                  const Icon(Icons.apps_rounded, color: AppColors.indigo),
+            ),
+          ),
   );
 }
 
@@ -1900,6 +1954,8 @@ class _AppUsageRow extends StatelessWidget {
   );
 }
 
+// Reserved for real schedule-event correlation data.
+// ignore: unused_element
 class _ConflictCard extends StatelessWidget {
   const _ConflictCard({
     required this.schedule,
@@ -1961,41 +2017,68 @@ class _HistoryRow extends StatelessWidget {
     required this.app,
     required this.duration,
     required this.icon,
+    this.iconBytes,
+    required this.onTap,
   });
   final String time;
   final String app;
   final String duration;
   final IconData icon;
+  final Uint8List? iconBytes;
+  final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Row(
-      children: [
-        SizedBox(
-          width: 66,
-          child: Text(
-            time,
-            style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(10),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 66,
+            child: Text(
+              time,
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
-        ),
-        CircleAvatar(
-          radius: 17,
-          backgroundColor: AppColors.indigo.withValues(alpha: .1),
-          child: Icon(icon, size: 17, color: AppColors.indigo),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(app, style: const TextStyle(fontWeight: FontWeight.w600)),
-        ),
-        Text(duration),
-      ],
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: AppColors.indigo.withValues(alpha: .1),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: iconBytes == null
+                ? Icon(icon, size: 17, color: AppColors.indigo)
+                : ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.memory(
+                      iconBytes!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) =>
+                          Icon(icon, size: 17, color: AppColors.indigo),
+                    ),
+                  ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              app,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          Text(duration),
+        ],
+      ),
     ),
   );
 }
 
+// Reserved for persisted intervention-state data.
+// ignore: unused_element
 class _InterventionLevels extends StatelessWidget {
   const _InterventionLevels();
   @override

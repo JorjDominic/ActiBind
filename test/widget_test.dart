@@ -78,7 +78,7 @@ void main() {
 
     await tester.tap(find.text('Device Activity'));
     await tester.pumpAndSettle();
-    expect(find.text('Schedule Conflicts'), findsOneWidget);
+    expect(find.text('Recent Activity'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
