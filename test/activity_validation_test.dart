@@ -82,5 +82,28 @@ void main() {
         returnsNormally,
       );
     });
+
+    test('detects overlaps but allows adjacent activities', () {
+      final firstStart = DateTime(2026, 8, 15, 10);
+      final firstEnd = DateTime(2026, 8, 15, 11);
+      expect(
+        ActivityValidation.intervalsOverlap(
+          firstStart: firstStart,
+          firstEnd: firstEnd,
+          secondStart: DateTime(2026, 8, 15, 10, 30),
+          secondEnd: DateTime(2026, 8, 15, 11, 30),
+        ),
+        isTrue,
+      );
+      expect(
+        ActivityValidation.intervalsOverlap(
+          firstStart: firstStart,
+          firstEnd: firstEnd,
+          secondStart: firstEnd,
+          secondEnd: DateTime(2026, 8, 15, 12),
+        ),
+        isFalse,
+      );
+    });
   });
 }

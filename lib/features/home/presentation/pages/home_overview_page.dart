@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:actibind/core/constants/app_constants.dart';
 import 'package:actibind/core/theme/app_colors.dart';
 import 'package:actibind/features/activities/models/app_usage.dart';
+import 'package:actibind/features/activities/models/activity.dart';
+import 'package:actibind/features/activities/services/activity_service.dart';
 import 'package:actibind/features/activities/services/usage_stats_service.dart';
 import 'package:actibind/features/weather/models/current_weather.dart';
 import 'package:actibind/features/weather/services/weather_service.dart';
@@ -11,6 +13,7 @@ import 'package:actibind/shared/widgets/app_page_header.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
 class HomeOverviewPage extends StatelessWidget {
@@ -142,14 +145,7 @@ class HomeOverviewPage extends StatelessWidget {
                 ),
               ),
               SizedBox(width: 12),
-              Expanded(
-                child: _SummaryTile(
-                  title: 'Distractions',
-                  value: '2',
-                  subtitle: 'down 3 this week',
-                  color: AppColors.coral,
-                ),
-              ),
+              Expanded(child: _ConflictSummaryTile()),
             ],
           ),
           const SizedBox(height: 24),
@@ -744,6 +740,118 @@ class _SummaryTile extends StatelessWidget {
               style: const TextStyle(fontSize: 9, color: AppColors.muted),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ConflictSummaryTile extends StatefulWidget {
+  const _ConflictSummaryTile();
+
+  @override
+  State<_ConflictSummaryTile> createState() => _ConflictSummaryTileState();
+}
+
+class _ConflictSummaryTileState extends State<_ConflictSummaryTile> {
+  List<Activity>? _conflicts;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _failed = false);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    try {
+      final conflicts = await ActivityService.getConflictingActivitiesInRange(
+        from: today,
+        to: today.add(const Duration(days: 1)),
+      );
+      if (mounted) setState(() => _conflicts = conflicts);
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    }
+  }
+
+  Future<void> _handleTap() async {
+    if (_failed) {
+      await _load();
+      return;
+    }
+    final conflicts = _conflicts;
+    if (conflicts == null) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: Icon(
+          conflicts.isEmpty
+              ? Icons.event_available_rounded
+              : Icons.warning_amber_rounded,
+          color: conflicts.isEmpty ? AppColors.teal : AppColors.coral,
+        ),
+        title: Text(
+          conflicts.isEmpty ? 'No conflicts today' : 'Today’s conflicts',
+        ),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: conflicts.isEmpty
+              ? const Text('None of today’s activities overlap.')
+              : SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final activity in conflicts)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(
+                            Icons.event_busy_rounded,
+                            color: AppColors.coral,
+                          ),
+                          title: Text(activity.name),
+                          subtitle: Text(
+                            '${DateFormat.jm().format(activity.startsAt)}–'
+                            '${DateFormat.jm().format(activity.endsAt)}',
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final count = _conflicts?.length;
+    return Semantics(
+      button: true,
+      label: 'View conflicting activities',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _handleTap,
+        child: _SummaryTile(
+          title: 'Conflicts',
+          value: _failed ? '—' : (count?.toString() ?? '…'),
+          subtitle: _failed
+              ? 'tap to retry'
+              : count == null
+              ? 'syncing schedule'
+              : count == 1
+              ? 'tap to view conflicting activity'
+              : 'tap to view conflicting activities',
+          color: AppColors.coral,
         ),
       ),
     );

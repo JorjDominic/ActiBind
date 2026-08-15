@@ -22,6 +22,61 @@ class ActivityService {
     return response.map(Activity.fromJson).toList();
   }
 
+  static Future<List<Activity>> getConflictingActivities({
+    required DateTime startsAt,
+    required DateTime endsAt,
+    String? excludingId,
+  }) async {
+    if (!endsAt.isAfter(startsAt)) {
+      throw const FormatException('End time must be after start time.');
+    }
+    if (excludingId != null) ActivityValidation.validateId(excludingId);
+
+    var query = _supabase
+        .from('activities')
+        .select()
+        .lt('starts_at', endsAt.toUtc().toIso8601String())
+        .gt('ends_at', startsAt.toUtc().toIso8601String());
+    if (excludingId != null) query = query.neq('id', excludingId);
+    final response = await query.order('starts_at');
+    return response.map(Activity.fromJson).toList();
+  }
+
+  static Future<int> getConflictingActivityCount({
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final conflicts = await getConflictingActivitiesInRange(from: from, to: to);
+    return conflicts.length;
+  }
+
+  static Future<List<Activity>> getConflictingActivitiesInRange({
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final activities = await getActivities(from: from, to: to);
+    final conflictingIds = <String>{};
+    for (var first = 0; first < activities.length; first++) {
+      for (var second = first + 1; second < activities.length; second++) {
+        final a = activities[first];
+        final b = activities[second];
+        if (ActivityValidation.intervalsOverlap(
+          firstStart: a.startsAt,
+          firstEnd: a.endsAt,
+          secondStart: b.startsAt,
+          secondEnd: b.endsAt,
+        )) {
+          conflictingIds
+            ..add(a.id)
+            ..add(b.id);
+        }
+      }
+    }
+    return activities
+        .where((activity) => conflictingIds.contains(activity.id))
+        .toList();
+  }
+
   static Future<Activity> createActivity({
     required String name,
     required String category,

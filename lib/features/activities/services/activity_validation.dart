@@ -55,6 +55,13 @@ class ActivityValidation {
     }
   }
 
+  static bool intervalsOverlap({
+    required DateTime firstStart,
+    required DateTime firstEnd,
+    required DateTime secondStart,
+    required DateTime secondEnd,
+  }) => firstStart.isBefore(secondEnd) && firstEnd.isAfter(secondStart);
+
   static void validateActivity({
     required String name,
     required String category,

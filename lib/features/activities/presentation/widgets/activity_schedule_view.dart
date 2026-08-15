@@ -36,6 +36,19 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
       .where((item) => DateUtils.isSameDay(item.startsAt, _selectedDate))
       .toList();
 
+  List<Activity> _conflictsFor(Activity activity) => _activities
+      .where(
+        (other) =>
+            other.id != activity.id &&
+            ActivityValidation.intervalsOverlap(
+              firstStart: activity.startsAt,
+              firstEnd: activity.endsAt,
+              secondStart: other.startsAt,
+              secondEnd: other.endsAt,
+            ),
+      )
+      .toList();
+
   PublicHoliday? get _selectedHoliday {
     for (final holiday in _holidays) {
       if (DateUtils.isSameDay(holiday.date, _selectedDate)) return holiday;
@@ -261,6 +274,7 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
           for (final activity in _selectedActivities) ...[
             _ActivityCard(
               activity: activity,
+              conflicts: _conflictsFor(activity),
               onEdit: () => _edit(activity),
               onDelete: () => _delete(activity),
             ),
@@ -450,11 +464,13 @@ class _HolidayCard extends StatelessWidget {
 class _ActivityCard extends StatelessWidget {
   const _ActivityCard({
     required this.activity,
+    required this.conflicts,
     required this.onEdit,
     required this.onDelete,
   });
 
   final Activity activity;
+  final List<Activity> conflicts;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -498,6 +514,11 @@ class _ActivityCard extends StatelessWidget {
                     children: [
                       _Tag(label: activity.category, color: color),
                       _Tag(label: status, color: _statusColor(status)),
+                      if (conflicts.isNotEmpty)
+                        _ConflictTag(
+                          count: conflicts.length,
+                          onPressed: () => _showConflicts(context),
+                        ),
                       if (activity.repeat != 'Never')
                         _Tag(label: activity.repeat, color: AppColors.indigo),
                       if (activity.monitorUsage)
@@ -534,6 +555,97 @@ class _ActivityCard extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _showConflicts(BuildContext context) => showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      icon: const Icon(Icons.warning_amber_rounded, color: AppColors.coral),
+      title: Text(
+        conflicts.length == 1
+            ? 'Conflicting activity'
+            : '${conflicts.length} conflicting activities',
+      ),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('“${activity.name}” overlaps with:'),
+              const SizedBox(height: 12),
+              for (final conflict in conflicts)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(
+                    Icons.event_busy_rounded,
+                    color: AppColors.coral,
+                  ),
+                  title: Text(conflict.name),
+                  subtitle: Text(
+                    '${DateFormat('MMM d, y').format(conflict.startsAt)} • '
+                    '${DateFormat.jm().format(conflict.startsAt)}–'
+                    '${DateFormat.jm().format(conflict.endsAt)}',
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
+class _ConflictTag extends StatelessWidget {
+  const _ConflictTag({required this.count, required this.onPressed});
+
+  final int count;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: 'This activity overlaps with another scheduled activity.',
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+          decoration: BoxDecoration(
+            color: AppColors.coral.withValues(alpha: .12),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.coral.withValues(alpha: .35)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.warning_amber_rounded,
+                size: 13,
+                color: AppColors.coral,
+              ),
+              const SizedBox(width: 3),
+              Text(
+                count == 1 ? 'Conflict' : 'Conflicts ($count)',
+                style: const TextStyle(
+                  color: AppColors.coral,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _Tag extends StatelessWidget {
@@ -695,6 +807,7 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
   late bool _monitor;
   late bool _warnings;
   String? _dateTimeError;
+  bool _checkingConflicts = false;
 
   @override
   void initState() {
@@ -763,7 +876,7 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
     }
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     final startsAt = _combine(_start);
     final endsAt = _combine(_end);
@@ -784,6 +897,30 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
       return;
     }
     setState(() => _dateTimeError = null);
+
+    if (_warnings) {
+      setState(() => _checkingConflicts = true);
+      try {
+        final conflicts = await ActivityService.getConflictingActivities(
+          startsAt: startsAt,
+          endsAt: endsAt,
+          excludingId: widget.activity?.id,
+        );
+        if (!mounted) return;
+        if (conflicts.isNotEmpty) {
+          final saveAnyway = await _showConflictWarning(conflicts);
+          if (!mounted || !saveAnyway) return;
+        }
+      } catch (error) {
+        if (!mounted) return;
+        final saveAnyway = await _showConflictCheckError(error);
+        if (!mounted || !saveAnyway) return;
+      } finally {
+        if (mounted) setState(() => _checkingConflicts = false);
+      }
+    }
+
+    if (!mounted) return;
     Navigator.pop(
       context,
       ActivityDraft(
@@ -796,6 +933,83 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
         warnConflicts: _warnings,
       ),
     );
+  }
+
+  Future<bool> _showConflictWarning(List<Activity> conflicts) async {
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.warning_amber_rounded),
+        title: Text(
+          conflicts.length == 1
+              ? 'Activity time conflict'
+              : '${conflicts.length} activity time conflicts',
+        ),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('This schedule overlaps with:'),
+                const SizedBox(height: 12),
+                for (final conflict in conflicts)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    leading: const Icon(Icons.schedule_rounded),
+                    title: Text(conflict.name),
+                    subtitle: Text(
+                      '${DateFormat('MMM d, y').format(conflict.startsAt)} • '
+                      '${DateFormat.jm().format(conflict.startsAt)}–'
+                      '${DateFormat.jm().format(conflict.endsAt)}',
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                const Text('You can change the time or save it anyway.'),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Change time'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Save anyway'),
+          ),
+        ],
+      ),
+    );
+    return proceed ?? false;
+  }
+
+  Future<bool> _showConflictCheckError(Object error) async {
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.wifi_off_rounded),
+        title: const Text('Could not check for conflicts'),
+        content: const Text(
+          'The activity could not be compared with your schedule. '
+          'Check your connection, or save without checking.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Go back'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Save without checking'),
+          ),
+        ],
+      ),
+    );
+    return proceed ?? false;
   }
 
   @override
@@ -931,8 +1145,14 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: FilledButton(
-                    onPressed: _save,
-                    child: Text(widget.activity == null ? 'Create' : 'Save'),
+                    onPressed: _checkingConflicts ? null : _save,
+                    child: Text(
+                      _checkingConflicts
+                          ? 'Checking…'
+                          : widget.activity == null
+                          ? 'Create'
+                          : 'Save',
+                    ),
                   ),
                 ),
               ],
