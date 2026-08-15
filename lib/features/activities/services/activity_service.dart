@@ -1,5 +1,6 @@
 import 'package:actibind/core/services/supabase_service.dart';
 import 'package:actibind/features/activities/models/activity.dart';
+import 'package:actibind/features/activities/services/activity_validation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ActivityService {
@@ -11,6 +12,7 @@ class ActivityService {
     required DateTime from,
     required DateTime to,
   }) async {
+    ActivityValidation.validateRange(from: from, to: to);
     final response = await _supabase
         .from('activities')
         .select()
@@ -29,6 +31,14 @@ class ActivityService {
     required bool monitorUsage,
     required bool warnConflicts,
   }) async {
+    ActivityValidation.validateActivity(
+      name: name,
+      category: category,
+      startsAt: startsAt,
+      endsAt: endsAt,
+      repeat: repeat,
+      requireFutureStart: true,
+    );
     final user = _supabase.auth.currentUser;
     if (user == null) {
       throw const AuthException('Sign in before creating an activity.');
@@ -60,6 +70,14 @@ class ActivityService {
     required bool monitorUsage,
     required bool warnConflicts,
   }) async {
+    ActivityValidation.validateId(id);
+    ActivityValidation.validateActivity(
+      name: name,
+      category: category,
+      startsAt: startsAt,
+      endsAt: endsAt,
+      repeat: repeat,
+    );
     final response = await _supabase
         .from('activities')
         .update({
@@ -79,6 +97,7 @@ class ActivityService {
   }
 
   static Future<void> deleteActivity(String id) async {
+    ActivityValidation.validateId(id);
     await _supabase.from('activities').delete().eq('id', id);
   }
 }

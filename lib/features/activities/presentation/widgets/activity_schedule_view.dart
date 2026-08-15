@@ -2,6 +2,7 @@ import 'package:actibind/core/theme/app_colors.dart';
 import 'package:actibind/features/activities/models/activity.dart';
 import 'package:actibind/features/activities/models/public_holiday.dart';
 import 'package:actibind/features/activities/services/activity_service.dart';
+import 'package:actibind/features/activities/services/activity_validation.dart';
 import 'package:actibind/features/activities/services/holiday_service.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -70,6 +71,7 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
   }
 
   String _friendlyError(Object error) {
+    if (error is FormatException) return error.message;
     final value = error.toString();
     if (value.contains('Supabase has not been initialized')) {
       return 'Activity sync is available after the app starts normally.';
@@ -692,6 +694,7 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
   late TimeOfDay _end;
   late bool _monitor;
   late bool _warnings;
+  String? _dateTimeError;
 
   @override
   void initState() {
@@ -700,9 +703,13 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
     _name = TextEditingController(text: item?.name ?? widget.initialName ?? '');
     _category = item?.category ?? widget.initialCategory ?? 'Focus';
     _repeat = item?.repeat ?? 'Never';
-    _date = DateUtils.dateOnly(
-      item?.startsAt ?? widget.initialDate ?? DateTime.now(),
+    final today = DateUtils.dateOnly(DateTime.now());
+    final requestedDate = DateUtils.dateOnly(
+      item?.startsAt ?? widget.initialDate ?? today,
     );
+    _date = item == null && requestedDate.isBefore(today)
+        ? today
+        : requestedDate;
     _start = TimeOfDay.fromDateTime(item?.startsAt ?? DateTime.now());
     _end = TimeOfDay.fromDateTime(
       item?.endsAt ?? DateTime.now().add(const Duration(hours: 1)),
@@ -721,13 +728,22 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
       DateTime(_date.year, _date.month, _date.day, time.hour, time.minute);
 
   Future<void> _pickDate() async {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final earliest = widget.activity == null
+        ? today
+        : (_date.isBefore(today) ? _date : today);
     final value = await showDatePicker(
       context: context,
       initialDate: _date,
-      firstDate: DateTime(DateTime.now().year - 2),
+      firstDate: earliest,
       lastDate: DateTime(DateTime.now().year + 2, 12, 31),
     );
-    if (value != null) setState(() => _date = value);
+    if (value != null) {
+      setState(() {
+        _date = value;
+        _dateTimeError = null;
+      });
+    }
   }
 
   Future<void> _pickTime(bool start) async {
@@ -735,19 +751,39 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
       context: context,
       initialTime: start ? _start : _end,
     );
-    if (value != null) setState(() => start ? _start = value : _end = value);
+    if (value != null) {
+      setState(() {
+        if (start) {
+          _start = value;
+        } else {
+          _end = value;
+        }
+        _dateTimeError = null;
+      });
+    }
   }
 
   void _save() {
     if (!_formKey.currentState!.validate()) return;
     final startsAt = _combine(_start);
     final endsAt = _combine(_end);
-    if (!endsAt.isAfter(startsAt)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('End time must be after start time.')),
+    try {
+      ActivityValidation.validateActivity(
+        name: _name.text,
+        category: _category,
+        startsAt: startsAt,
+        endsAt: endsAt,
+        repeat: _repeat,
+        requireFutureStart: widget.activity == null,
       );
+    } on FormatException catch (error) {
+      setState(() => _dateTimeError = error.message);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
       return;
     }
+    setState(() => _dateTimeError = null);
     Navigator.pop(
       context,
       ActivityDraft(
@@ -791,9 +827,7 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
                 prefixIcon: Icon(Icons.edit_calendar_rounded),
                 border: OutlineInputBorder(),
               ),
-              validator: (value) => value == null || value.trim().isEmpty
-                  ? 'Enter an activity name'
-                  : null,
+              validator: ActivityValidation.nameError,
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
@@ -845,6 +879,19 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
                 ),
               ],
             ),
+            if (_dateTimeError != null) ...[
+              const SizedBox(height: 8),
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  _dateTimeError!,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _repeat,
