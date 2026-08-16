@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:actibind/core/constants/app_constants.dart';
@@ -164,30 +165,32 @@ class _HomeOverviewPageState extends State<HomeOverviewPage> {
           const SizedBox(height: 18),
           const _WeatherCard(),
           const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: _SummaryTile(
-                  title: 'Focus today',
-                  value: _metrics == null
-                      ? '—'
-                      : InsightMetricsService.formatDuration(
-                          Duration(
-                            minutes:
-                                (_metrics!.goalProgress *
-                                        InsightMetricsService
-                                            .dailyFocusGoal
-                                            .inMinutes)
-                                    .round(),
+          IntrinsicHeight(
+            child: Row(
+              children: [
+                Expanded(
+                  child: _SummaryTile(
+                    title: 'Focus today',
+                    value: _metrics == null
+                        ? '—'
+                        : InsightMetricsService.formatDuration(
+                            Duration(
+                              minutes:
+                                  (_metrics!.goalProgress *
+                                          InsightMetricsService
+                                              .dailyFocusGoal
+                                              .inMinutes)
+                                      .round(),
+                            ),
                           ),
-                        ),
-                  subtitle: 'of 6h goal',
-                  color: AppColors.indigo,
+                    subtitle: 'of 6h goal',
+                    color: AppColors.indigo,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(child: _ConflictSummaryTile()),
-            ],
+                const VerticalDivider(width: 24, thickness: 1),
+                const Expanded(child: _ConflictSummaryTile()),
+              ],
+            ),
           ),
           const SizedBox(height: 24),
           const AppSectionHeader(
@@ -330,10 +333,13 @@ class _WeatherCard extends StatefulWidget {
 
 class _WeatherCardState extends State<_WeatherCard> {
   CurrentWeather? _weather;
+  String? _weatherTip;
   bool _loading = true;
   bool _failed = false;
+  bool _tipLoading = false;
   bool _usingFallbackLocation = false;
   String _locationName = 'Manila';
+  int _tipRequest = 0;
 
   @override
   void initState() {
@@ -341,7 +347,7 @@ class _WeatherCardState extends State<_WeatherCard> {
     _load();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool forceRefresh = false}) async {
     setState(() {
       _loading = true;
       _failed = false;
@@ -361,6 +367,7 @@ class _WeatherCardState extends State<_WeatherCard> {
       }
       final lastKnown = await Geolocator.getLastKnownPosition();
       final recentEnough =
+          !forceRefresh &&
           lastKnown != null &&
           DateTime.now().difference(lastKnown.timestamp) <
               const Duration(minutes: 30) &&
@@ -390,6 +397,7 @@ class _WeatherCardState extends State<_WeatherCard> {
         WeatherService.getCurrentWeather(
           latitude: latitude,
           longitude: longitude,
+          forceRefresh: forceRefresh,
         ),
         position == null
             ? Future<String?>.value('Manila')
@@ -405,11 +413,35 @@ class _WeatherCardState extends State<_WeatherCard> {
           _usingFallbackLocation = usingFallback;
           _locationName = locationName;
         });
+        unawaited(_loadWeatherTip(weather, locationName));
       }
     } catch (_) {
       if (mounted) setState(() => _failed = true);
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadWeatherTip(
+    CurrentWeather weather,
+    String locationName,
+  ) async {
+    final request = ++_tipRequest;
+    if (mounted) setState(() => _tipLoading = true);
+    try {
+      final tip = await InsightService.generateWeatherTip(
+        weather: weather,
+        location: locationName,
+      );
+      if (mounted && request == _tipRequest) {
+        setState(() => _weatherTip = tip);
+      }
+    } catch (_) {
+      // Keep the instant condition-based tip when AI is unavailable.
+    } finally {
+      if (mounted && request == _tipRequest) {
+        setState(() => _tipLoading = false);
+      }
     }
   }
 
@@ -432,7 +464,9 @@ class _WeatherCardState extends State<_WeatherCard> {
                   const Expanded(child: Text('Weather is unavailable.')),
                   IconButton(
                     tooltip: 'Retry weather',
-                    onPressed: _load,
+                    onPressed: _loading
+                        ? null
+                        : () => _load(forceRefresh: true),
                     icon: const Icon(Icons.refresh_rounded),
                   ),
                 ],
@@ -492,6 +526,23 @@ class _WeatherCardState extends State<_WeatherCard> {
                           fontWeight: FontWeight.w800,
                         ),
                       ),
+                      IconButton(
+                        tooltip: _loading
+                            ? 'Refreshing weather'
+                            : 'Refresh weather',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: _loading
+                            ? null
+                            : () => _load(forceRefresh: true),
+                        icon: _loading
+                            ? const SizedBox.square(
+                                dimension: 17,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.refresh_rounded, size: 20),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -511,7 +562,7 @@ class _WeatherCardState extends State<_WeatherCard> {
                       const SizedBox(width: 7),
                       Expanded(
                         child: Text(
-                          _insight(weather),
+                          _weatherTip ?? _fallbackInsight(weather),
                           style: TextStyle(
                             fontSize: 11,
                             height: 1.3,
@@ -521,6 +572,13 @@ class _WeatherCardState extends State<_WeatherCard> {
                           ),
                         ),
                       ),
+                      if (_tipLoading) ...[
+                        const SizedBox(width: 8),
+                        const SizedBox.square(
+                          dimension: 12,
+                          child: CircularProgressIndicator(strokeWidth: 1.5),
+                        ),
+                      ],
                     ],
                   ),
                 ],
@@ -572,7 +630,7 @@ class _WeatherCardState extends State<_WeatherCard> {
         '${position.longitude.toStringAsFixed(2)}';
   }
 
-  static String _insight(CurrentWeather weather) {
+  static String _fallbackInsight(CurrentWeather weather) {
     final code = weather.weatherCode;
     if (code >= 95) {
       return 'Thunderstorms are likely—use an indoor Focus session and postpone outdoor Workout activities.';
@@ -796,43 +854,38 @@ class _SummaryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return shad.Card(
-      filled: true,
-      fillColor: color.withValues(alpha: .07),
-      borderColor: color.withValues(alpha: .16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: AppColors.muted,
-              ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.muted,
             ),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.bold,
+              color: color,
             ),
-            const SizedBox(height: 1),
-            Text(
-              subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 9, color: AppColors.muted),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 9, color: AppColors.muted),
+          ),
+        ],
       ),
     );
   }

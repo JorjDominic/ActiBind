@@ -25,7 +25,7 @@ Deno.serve(async (request) => {
   try {
     const body = await request.json();
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
-    const mode = ["home", "daily", "chat"].includes(body.mode) ? body.mode : "chat";
+    const mode = ["home", "daily", "chat", "weather"].includes(body.mode) ? body.mode : "chat";
     if (!prompt || prompt.length > 1000) return json({ error: "Invalid prompt" }, 400);
 
     const activities = Array.isArray(body.activities) ? body.activities.slice(0, 100) : [];
@@ -45,13 +45,18 @@ Deno.serve(async (request) => {
       "Use only the supplied schedule and device-usage context; never invent statistics.",
       "If data is insufficient, say so briefly and still offer a practical suggestion.",
       "Do not provide medical diagnoses. Be concise, supportive, and specific.",
-      mode === "home" ? "Return at most two short sentences." : "Return at most 120 words.",
+      mode === "weather"
+        ? "Use the supplied weather and schedule together. Return one practical sentence under 35 words. Do not invent a forecast or claim that current observations predict future conditions."
+        : mode === "home"
+        ? "Return at most two short sentences."
+        : "Return at most 120 words.",
     ].join(" ");
     const context = JSON.stringify({
       local_time: body.local_time,
       timezone: body.timezone,
       recent_activities: activities,
       device_usage_today: usage,
+      weather: body.weather,
     });
 
     const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -63,7 +68,7 @@ Deno.serve(async (request) => {
       body: JSON.stringify({
         model: Deno.env.get("GROQ_MODEL") ?? "llama-3.1-8b-instant",
         temperature: 0.35,
-        max_completion_tokens: mode === "home" ? 100 : 240,
+        max_completion_tokens: mode === "weather" ? 70 : mode === "home" ? 100 : 240,
         messages: [
           { role: "system", content: system },
           { role: "system", content: `User context: ${context}` },

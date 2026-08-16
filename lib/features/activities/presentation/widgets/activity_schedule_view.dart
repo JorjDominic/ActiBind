@@ -396,24 +396,37 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
             ),
           ),
         ] else ...[
-          for (final item in _plannerItems) ...[
-            if (item.activity case final activity?)
-              _ActivityCard(
-                activity: activity,
-                conflicts: _conflictsFor(activity),
-                onEdit: () => _edit(activity),
-                onDelete: () => _delete(activity),
-              )
-            else if (item.routine case final routine?)
-              _PlannerRoutineCard(
-                routine: routine,
-                date: _selectedDate,
-                occurrence: _routineOccurrences[routine.id],
-                onComplete: () => _setRoutineStatus(routine, 'completed'),
-                onSkip: () => _setRoutineStatus(routine, 'skipped'),
-              ),
-            const SizedBox(height: 11),
-          ],
+          for (var index = 0; index < _plannerItems.length; index++)
+            _PlannerTimelineEntry(
+              at: _plannerItems[index].at,
+              isFirst: index == 0,
+              isLast: index == _plannerItems.length - 1,
+              isRoutine: _plannerItems[index].routine != null,
+              hasConflict: _plannerItems[index].activity != null
+                  ? _conflictsFor(_plannerItems[index].activity!).isNotEmpty
+                  : false,
+              child: _plannerItems[index].activity != null
+                  ? _ActivityCard(
+                      activity: _plannerItems[index].activity!,
+                      conflicts: _conflictsFor(_plannerItems[index].activity!),
+                      onEdit: () => _edit(_plannerItems[index].activity!),
+                      onDelete: () => _delete(_plannerItems[index].activity!),
+                    )
+                  : _PlannerRoutineCard(
+                      routine: _plannerItems[index].routine!,
+                      date: _selectedDate,
+                      occurrence:
+                          _routineOccurrences[_plannerItems[index].routine!.id],
+                      onComplete: () => _setRoutineStatus(
+                        _plannerItems[index].routine!,
+                        'completed',
+                      ),
+                      onSkip: () => _setRoutineStatus(
+                        _plannerItems[index].routine!,
+                        'skipped',
+                      ),
+                    ),
+            ),
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton.icon(
@@ -424,6 +437,101 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
           ),
         ],
       ],
+    );
+  }
+}
+
+class _PlannerTimelineEntry extends StatelessWidget {
+  const _PlannerTimelineEntry({
+    required this.at,
+    required this.isFirst,
+    required this.isLast,
+    required this.isRoutine,
+    required this.hasConflict,
+    required this.child,
+  });
+
+  final DateTime at;
+  final bool isFirst;
+  final bool isLast;
+  final bool isRoutine;
+  final bool hasConflict;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final nodeColor = hasConflict
+        ? AppColors.coral
+        : isRoutine
+        ? AppColors.indigo
+        : AppColors.teal;
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: 54,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 16, right: 8),
+              child: Text(
+                DateFormat('h:mm').format(at),
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.muted,
+                ),
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 24,
+            child: Stack(
+              alignment: Alignment.topCenter,
+              children: [
+                if (!isFirst && !isLast)
+                  Positioned(
+                    top: 0,
+                    bottom: 0,
+                    child: Container(width: 2, color: AppColors.lavender),
+                  ),
+                if (isFirst && !isLast)
+                  Positioned(
+                    top: 20,
+                    bottom: 0,
+                    child: Container(width: 2, color: AppColors.lavender),
+                  ),
+                if (isLast && !isFirst)
+                  Positioned(
+                    top: 0,
+                    height: 21,
+                    child: Container(width: 2, color: AppColors.lavender),
+                  ),
+                Positioned(
+                  top: 15,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: isRoutine ? Colors.white : nodeColor,
+                      border: Border.all(color: nodeColor, width: 3),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: child,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1457,8 +1565,8 @@ String _status(Activity activity) {
 }
 
 Color _statusColor(String status) => switch (status) {
-  'Active' => AppColors.teal,
-  'Completed' => AppColors.indigo,
+  'Active' => AppColors.indigo,
+  'Completed' => AppColors.teal,
   _ => AppColors.amber,
 };
 

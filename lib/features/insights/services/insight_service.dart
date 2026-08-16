@@ -1,6 +1,7 @@
 import 'package:actibind/core/services/supabase_service.dart';
 import 'package:actibind/features/activities/services/activity_service.dart';
 import 'package:actibind/features/activities/services/usage_stats_service.dart';
+import 'package:actibind/features/weather/models/current_weather.dart';
 
 class InsightChatMessage {
   const InsightChatMessage({required this.role, required this.content});
@@ -14,6 +15,9 @@ class InsightChatMessage {
 class InsightService {
   InsightService._();
 
+  static final Map<String, ({String value, DateTime storedAt})> _cache = {};
+  static final Map<String, Future<String>> _inFlight = {};
+
   static Future<String> generateHomeInsight() => _request(
     prompt:
         'Give me one concise, practical insight for today in no more than two sentences.',
@@ -26,6 +30,43 @@ class InsightService {
     mode: 'daily',
   );
 
+  static Future<String> generateWeatherTip({
+    required CurrentWeather weather,
+    required String location,
+  }) {
+    final cacheKey = [
+      'weather',
+      location,
+      weather.observedAt.toIso8601String(),
+      weather.weatherCode,
+      weather.temperature.round(),
+      weather.windSpeed.round(),
+    ].join(':');
+    return _cachedRequest(
+      cacheKey: cacheKey,
+      maxAge: const Duration(minutes: 30),
+      request: () => _request(
+        prompt:
+            'Give one short, practical weather-aware activity planning tip. '
+            'Mention a concrete adjustment only when conditions justify it.',
+        mode: 'weather',
+        includeUsage: false,
+        extraContext: {
+          'weather': {
+            'location': location,
+            'temperature_c': weather.temperature,
+            'apparent_temperature_c': weather.apparentTemperature,
+            'humidity_percent': weather.humidity,
+            'wind_kmh': weather.windSpeed,
+            'weather_code': weather.weatherCode,
+            'is_day': weather.isDay,
+            'observed_at': weather.observedAt.toIso8601String(),
+          },
+        },
+      ),
+    );
+  }
+
   static Future<String> ask({
     required String question,
     List<InsightChatMessage> history = const [],
@@ -35,6 +76,8 @@ class InsightService {
     required String prompt,
     required String mode,
     List<InsightChatMessage> history = const [],
+    bool includeUsage = true,
+    Map<String, Object?> extraContext = const {},
   }) async {
     final cleanPrompt = prompt.trim();
     if (cleanPrompt.isEmpty) {
@@ -62,7 +105,7 @@ class InsightService {
     final activities = await ActivityService.getActivities(from: from, to: to);
 
     var usage = const <Map<String, Object>>[];
-    if (UsageStatsService.isSupported) {
+    if (includeUsage && UsageStatsService.isSupported) {
       try {
         if (await UsageStatsService.hasPermission()) {
           final rows = await UsageStatsService.getUsage(
@@ -112,6 +155,7 @@ class InsightService {
             .toList(growable: false),
         'timezone': now.timeZoneName,
         'local_time': now.toIso8601String(),
+        ...extraContext,
       },
     );
 
@@ -124,5 +168,27 @@ class InsightService {
       throw Exception('The insights service returned an empty response.');
     }
     return insight.trim();
+  }
+
+  static Future<String> _cachedRequest({
+    required String cacheKey,
+    required Duration maxAge,
+    required Future<String> Function() request,
+  }) {
+    final cached = _cache[cacheKey];
+    if (cached != null && DateTime.now().difference(cached.storedAt) < maxAge) {
+      return Future.value(cached.value);
+    }
+    final pending = _inFlight[cacheKey];
+    if (pending != null) return pending;
+
+    final future = request()
+        .then((value) {
+          _cache[cacheKey] = (value: value, storedAt: DateTime.now());
+          return value;
+        })
+        .whenComplete(() => _inFlight.remove(cacheKey));
+    _inFlight[cacheKey] = future;
+    return future;
   }
 }

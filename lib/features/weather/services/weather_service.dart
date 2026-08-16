@@ -15,10 +15,12 @@ class WeatherService {
   static Future<CurrentWeather> getCurrentWeather({
     required double latitude,
     required double longitude,
+    bool forceRefresh = false,
   }) async {
     final cached = _cached;
     final cachedAt = _cachedAt;
-    if (cached != null &&
+    if (!forceRefresh &&
+        cached != null &&
         cachedAt != null &&
         _cachedLatitude != null &&
         _cachedLongitude != null &&

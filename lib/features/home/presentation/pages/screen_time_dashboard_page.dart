@@ -58,6 +58,15 @@ class _ScreenTimeDashboardPageState extends State<ScreenTimeDashboardPage> {
     _loadMetrics();
   }
 
+  String get _averageSubtitle {
+    final metrics = _metrics;
+    final change = metrics?.averageChangePercent;
+    if (metrics == null) return 'syncing activity';
+    if (change == null) return 'no previous-period baseline yet';
+    final direction = change >= 0 ? 'up' : 'down';
+    return '${change.abs().round()}% $direction from the previous ${_range.toLowerCase()}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -110,7 +119,7 @@ class _ScreenTimeDashboardPageState extends State<ScreenTimeDashboardPage> {
             value: _metrics == null
                 ? '—'
                 : InsightMetricsService.formatDuration(_metrics!.dailyAverage),
-            subtitle: 'average elapsed activity per day',
+            subtitle: _averageSubtitle,
             showBars: true,
             bars: _metrics?.dayLevels,
             barDurations: _metrics?.dayDurations,
@@ -686,27 +695,44 @@ class _MetricCard extends StatelessWidget {
                   const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      for (var index = 0; index < 7; index++)
-                        _DayBar(
-                          index: bars?[index] ?? .08,
-                          color: accent,
-                          label: const [
-                            'M',
-                            'T',
-                            'W',
-                            'T',
-                            'F',
-                            'S',
-                            'S',
-                          ][index],
-                          value: barDurations == null
-                              ? null
-                              : InsightMetricsService.formatDuration(
-                                  barDurations![index],
+                    children:
+                        barDurations != null &&
+                            barDurations!.every(
+                              (duration) => duration == Duration.zero,
+                            )
+                        ? [
+                            const Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 28),
+                                child: Text(
+                                  'No activity recorded for this period yet.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: AppColors.muted),
                                 ),
-                        ),
-                    ],
+                              ),
+                            ),
+                          ]
+                        : [
+                            for (var index = 0; index < 7; index++)
+                              _DayBar(
+                                index: bars?[index] ?? .08,
+                                color: accent,
+                                label: const [
+                                  'M',
+                                  'T',
+                                  'W',
+                                  'T',
+                                  'F',
+                                  'S',
+                                  'S',
+                                ][index],
+                                value: barDurations == null
+                                    ? null
+                                    : InsightMetricsService.formatDuration(
+                                        barDurations![index],
+                                      ),
+                              ),
+                          ],
                   ),
                   const SizedBox(height: 12),
                   Text(subtitle),
@@ -776,7 +802,9 @@ class _DayBar extends StatelessWidget {
             style: const TextStyle(fontSize: 8, color: AppColors.muted),
           ),
           const SizedBox(height: 3),
-          Container(
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
             width: 18,
             height: 88 * index,
             decoration: BoxDecoration(

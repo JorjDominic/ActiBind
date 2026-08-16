@@ -40,10 +40,18 @@ class InsightMetricsService {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final from = today.subtract(Duration(days: days - 1));
-    final activities = await ActivityService.getActivities(
-      from: from,
-      to: today.add(const Duration(days: 1)),
-    );
+    final results = await Future.wait([
+      ActivityService.getActivities(
+        from: from,
+        to: today.add(const Duration(days: 1)),
+      ),
+      ActivityService.getActivities(
+        from: from.subtract(Duration(days: days)),
+        to: from,
+      ),
+    ]);
+    final activities = results[0];
+    final previousActivities = results[1];
 
     var usingUsage = false;
     var todayValue = _elapsedDuration(
@@ -69,6 +77,10 @@ class InsightMetricsService {
     }
 
     final elapsedTotal = _elapsedDuration(activities, now);
+    final previousTotal = previousActivities.fold<Duration>(
+      Duration.zero,
+      (total, item) => total + item.endsAt.difference(item.startsAt),
+    );
     final elapsedDays = now.difference(from).inDays + 1;
     final focusToday = _elapsedDuration(
       activities.where(
@@ -104,12 +116,24 @@ class InsightMetricsService {
           '${DateFormat.jm().format(start)}–${DateFormat.jm().format(start.add(const Duration(hours: 1)))}';
     }
 
+    final dailyAverage = Duration(
+      milliseconds: elapsedTotal.inMilliseconds ~/ elapsedDays,
+    );
+    final previousDailyAverage = Duration(
+      milliseconds: previousTotal.inMilliseconds ~/ days,
+    );
+    final change = previousDailyAverage.inMinutes == 0
+        ? null
+        : ((dailyAverage.inMinutes - previousDailyAverage.inMinutes) /
+                  previousDailyAverage.inMinutes) *
+              100;
+
     return InsightMetrics(
       todayValue: todayValue,
       todayLabel: usingUsage ? 'device usage today' : 'elapsed schedule today',
-      dailyAverage: Duration(
-        milliseconds: elapsedTotal.inMilliseconds ~/ elapsedDays,
-      ),
+      dailyAverage: dailyAverage,
+      previousDailyAverage: previousDailyAverage,
+      averageChangePercent: change,
       goalProgress: (focusToday.inMinutes / dailyFocusGoal.inMinutes).clamp(
         0,
         1,
