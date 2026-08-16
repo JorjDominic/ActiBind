@@ -42,7 +42,7 @@ class _ActivityLedgerPageState extends State<ActivityLedgerPage> {
               ButtonSegment(
                 value: 0,
                 icon: Icon(Icons.event_note_rounded),
-                label: Text('Schedule'),
+                label: Text('Planner'),
               ),
               ButtonSegment(
                 value: 1,
@@ -57,9 +57,10 @@ class _ActivityLedgerPageState extends State<ActivityLedgerPage> {
           const SizedBox(height: 18),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 180),
-            child: _section == 0
-                ? const ActivityScheduleView(key: ValueKey('schedule'))
-                : const _DeviceActivityView(key: ValueKey('device')),
+            child: switch (_section) {
+              0 => const ActivityScheduleView(key: ValueKey('schedule')),
+              _ => const _DeviceActivityView(key: ValueKey('device')),
+            },
           ),
         ],
       ),

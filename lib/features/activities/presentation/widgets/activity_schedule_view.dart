@@ -4,6 +4,9 @@ import 'package:actibind/features/activities/models/public_holiday.dart';
 import 'package:actibind/features/activities/services/activity_service.dart';
 import 'package:actibind/features/activities/services/activity_validation.dart';
 import 'package:actibind/features/activities/services/holiday_service.dart';
+import 'package:actibind/features/routines/models/routine.dart';
+import 'package:actibind/features/routines/services/routine_service.dart';
+import 'package:actibind/features/routines/presentation/routine_view.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
@@ -19,6 +22,8 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
   DateTime _selectedDate = DateUtils.dateOnly(DateTime.now());
   List<Activity> _activities = const [];
   List<PublicHoliday> _holidays = const [];
+  List<Routine> _routines = const [];
+  Map<String, RoutineOccurrence> _routineOccurrences = const {};
   bool _loading = true;
   String? _error;
 
@@ -35,6 +40,21 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
   List<Activity> get _selectedActivities => _activities
       .where((item) => DateUtils.isSameDay(item.startsAt, _selectedDate))
       .toList();
+
+  List<Routine> get _selectedRoutines =>
+      _routines.where((routine) => routine.occursOn(_selectedDate)).toList();
+
+  List<({DateTime at, Activity? activity, Routine? routine})>
+  get _plannerItems {
+    final items = <({DateTime at, Activity? activity, Routine? routine})>[
+      for (final activity in _selectedActivities)
+        (at: activity.startsAt, activity: activity, routine: null),
+      for (final routine in _selectedRoutines)
+        (at: routine.startsAt(_selectedDate), activity: null, routine: routine),
+    ];
+    items.sort((a, b) => a.at.compareTo(b.at));
+    return items;
+  }
 
   List<Activity> _conflictsFor(Activity activity) => _activities
       .where(
@@ -68,6 +88,10 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
     final holidaysFuture = HolidayService.getHolidays(
       year: _selectedDate.year,
     ).then<List<PublicHoliday>?>((items) => items, onError: (_) => null);
+    final routinesFuture = Future.wait([
+      RoutineService.getRoutines(),
+      RoutineService.getOccurrences(_selectedDate),
+    ]).then<List<Object?>?>((items) => items, onError: (_) => null);
     try {
       final items = await activitiesFuture;
       if (mounted) setState(() => _activities = items);
@@ -77,6 +101,13 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
     final holidays = await holidaysFuture;
     if (mounted && holidays != null) {
       setState(() => _holidays = holidays);
+    }
+    final routineData = await routinesFuture;
+    if (mounted && routineData != null) {
+      setState(() {
+        _routines = routineData[0] as List<Routine>;
+        _routineOccurrences = routineData[1] as Map<String, RoutineOccurrence>;
+      });
     }
     if (mounted) {
       setState(() => _loading = false);
@@ -106,13 +137,98 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
     if (selected == null || !mounted) return;
     final oldWeek = _weekStart;
     setState(() => _selectedDate = DateUtils.dateOnly(selected));
-    if (!DateUtils.isSameDay(oldWeek, _weekStart)) await _load();
+    if (!DateUtils.isSameDay(oldWeek, _weekStart)) {
+      await _load();
+    } else {
+      await _loadRoutineOccurrences();
+    }
   }
 
   Future<void> _selectDate(DateTime date) async {
     final oldWeek = _weekStart;
     setState(() => _selectedDate = DateUtils.dateOnly(date));
-    if (!DateUtils.isSameDay(oldWeek, _weekStart)) await _load();
+    if (!DateUtils.isSameDay(oldWeek, _weekStart)) {
+      await _load();
+    } else {
+      await _loadRoutineOccurrences();
+    }
+  }
+
+  Future<void> _loadRoutineOccurrences() async {
+    try {
+      final occurrences = await RoutineService.getOccurrences(_selectedDate);
+      if (mounted) setState(() => _routineOccurrences = occurrences);
+    } catch (_) {
+      // One-time activities remain usable if routine sync is unavailable.
+    }
+  }
+
+  Future<void> _showAddMenu() async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      useSafeArea: true,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.event_rounded),
+              title: const Text('One-time activity'),
+              subtitle: const Text('Schedule something for a specific date.'),
+              onTap: () => Navigator.pop(context, 'activity'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.repeat_rounded),
+              title: const Text('Repeating routine'),
+              subtitle: const Text(
+                'Create a reusable daily or weekly schedule.',
+              ),
+              onTap: () => Navigator.pop(context, 'routine'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (choice == 'activity') await _create();
+    if (choice == 'routine' && mounted) {
+      final saved = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        builder: (_) => RoutineFormSheet(existing: _routines),
+      );
+      if (saved == true) {
+        RoutineService.clearCache();
+        await _load();
+      }
+    }
+  }
+
+  Future<void> _manageRoutines() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => const FractionallySizedBox(
+        heightFactor: .9,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(18),
+          child: RoutineView(),
+        ),
+      ),
+    );
+    RoutineService.clearCache();
+    await _load();
+  }
+
+  Future<void> _setRoutineStatus(Routine routine, String status) async {
+    await RoutineService.setOccurrenceStatus(
+      routineId: routine.id,
+      date: _selectedDate,
+      status: status,
+    );
+    await _loadRoutineOccurrences();
   }
 
   Future<void> _create() async {
@@ -226,7 +342,7 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
               ),
             ),
             FilledButton.icon(
-              onPressed: _loading ? null : _create,
+              onPressed: _loading ? null : _showAddMenu,
               icon: const Icon(Icons.add_rounded),
               label: const Text('Add'),
             ),
@@ -236,6 +352,7 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
         _CalendarStrip(
           selectedDate: _selectedDate,
           activities: _activities,
+          routines: _routines,
           holidays: _holidays,
           onSelected: _selectDate,
           onOpenCalendar: _chooseDate,
@@ -249,13 +366,13 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
           children: [
             Expanded(
               child: Text(
-                'Scheduled activities',
+                'Planner',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
             ),
             if (!_loading)
               Text(
-                '${_selectedActivities.length}',
+                '${_plannerItems.length}',
                 style: const TextStyle(
                   color: AppColors.teal,
                   fontWeight: FontWeight.w800,
@@ -268,18 +385,44 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
           const _LoadingState()
         else if (_error != null)
           _ErrorState(message: _error!, onRetry: _load)
-        else if (_selectedActivities.isEmpty)
-          _EmptyState(onAdd: _create)
-        else
-          for (final activity in _selectedActivities) ...[
-            _ActivityCard(
-              activity: activity,
-              conflicts: _conflictsFor(activity),
-              onEdit: () => _edit(activity),
-              onDelete: () => _delete(activity),
+        else if (_plannerItems.isEmpty) ...[
+          _EmptyState(onAdd: _showAddMenu),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _manageRoutines,
+              icon: const Icon(Icons.settings_rounded),
+              label: const Text('Manage routines'),
             ),
+          ),
+        ] else ...[
+          for (final item in _plannerItems) ...[
+            if (item.activity case final activity?)
+              _ActivityCard(
+                activity: activity,
+                conflicts: _conflictsFor(activity),
+                onEdit: () => _edit(activity),
+                onDelete: () => _delete(activity),
+              )
+            else if (item.routine case final routine?)
+              _PlannerRoutineCard(
+                routine: routine,
+                date: _selectedDate,
+                occurrence: _routineOccurrences[routine.id],
+                onComplete: () => _setRoutineStatus(routine, 'completed'),
+                onSkip: () => _setRoutineStatus(routine, 'skipped'),
+              ),
             const SizedBox(height: 11),
           ],
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _manageRoutines,
+              icon: const Icon(Icons.settings_rounded),
+              label: const Text('Manage routines'),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -289,6 +432,7 @@ class _CalendarStrip extends StatelessWidget {
   const _CalendarStrip({
     required this.selectedDate,
     required this.activities,
+    required this.routines,
     required this.holidays,
     required this.onSelected,
     required this.onOpenCalendar,
@@ -296,6 +440,7 @@ class _CalendarStrip extends StatelessWidget {
 
   final DateTime selectedDate;
   final List<Activity> activities;
+  final List<Routine> routines;
   final List<PublicHoliday> holidays;
   final ValueChanged<DateTime> onSelected;
   final VoidCallback onOpenCalendar;
@@ -338,9 +483,11 @@ class _CalendarStrip extends StatelessWidget {
               children: List.generate(7, (index) {
                 final date = start.add(Duration(days: index));
                 final selected = DateUtils.isSameDay(date, selectedDate);
-                final hasItems = activities.any(
-                  (item) => DateUtils.isSameDay(item.startsAt, date),
-                );
+                final hasItems =
+                    activities.any(
+                      (item) => DateUtils.isSameDay(item.startsAt, date),
+                    ) ||
+                    routines.any((routine) => routine.occursOn(date));
                 final isHoliday = holidays.any(
                   (holiday) => DateUtils.isSameDay(holiday.date, date),
                 );
@@ -459,6 +606,116 @@ class _HolidayCard extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _PlannerRoutineCard extends StatelessWidget {
+  const _PlannerRoutineCard({
+    required this.routine,
+    required this.date,
+    required this.occurrence,
+    required this.onComplete,
+    required this.onSkip,
+  });
+
+  final Routine routine;
+  final DateTime date;
+  final RoutineOccurrence? occurrence;
+  final VoidCallback onComplete;
+  final VoidCallback onSkip;
+
+  @override
+  Widget build(BuildContext context) {
+    final today = DateUtils.isSameDay(date, DateTime.now());
+    final now = DateTime.now();
+    final status =
+        occurrence?.status ??
+        (date.isBefore(DateUtils.dateOnly(now)) ||
+                (today && now.isAfter(routine.endsAt(date)))
+            ? 'missed'
+            : 'scheduled');
+    final canUpdate = today && status == 'scheduled';
+    final statusColor = switch (status) {
+      'completed' => AppColors.teal,
+      'skipped' || 'missed' => AppColors.coral,
+      _ => AppColors.amber,
+    };
+    return shad.Card(
+      borderColor: AppColors.indigo.withValues(alpha: .25),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.indigo.withValues(alpha: .11),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.repeat_rounded,
+                    color: AppColors.indigo,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        routine.name,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '${DateFormat.jm().format(routine.startsAt(date))} – '
+                        '${DateFormat.jm().format(routine.endsAt(date))}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 5),
+                      Wrap(
+                        spacing: 7,
+                        children: [
+                          _Tag(label: 'Routine', color: AppColors.indigo),
+                          _Tag(
+                            label: routine.category,
+                            color: _categoryColor(routine.category),
+                          ),
+                          _Tag(label: status, color: statusColor),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (canUpdate) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: onSkip,
+                      child: const Text('Skip'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: onComplete,
+                      icon: const Icon(Icons.check_rounded),
+                      label: const Text('Complete'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _ActivityCard extends StatelessWidget {
@@ -901,14 +1158,29 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
     if (_warnings) {
       setState(() => _checkingConflicts = true);
       try {
-        final conflicts = await ActivityService.getConflictingActivities(
-          startsAt: startsAt,
-          endsAt: endsAt,
-          excludingId: widget.activity?.id,
-        );
+        final results = await Future.wait([
+          ActivityService.getConflictingActivities(
+            startsAt: startsAt,
+            endsAt: endsAt,
+            excludingId: widget.activity?.id,
+          ),
+          RoutineService.getRoutines(),
+        ]);
+        final conflicts = results[0] as List<Activity>;
+        final routineConflicts = (results[1] as List<Routine>)
+            .where(
+              (routine) =>
+                  routine.occursOn(startsAt) &&
+                  routine.startsAt(startsAt).isBefore(endsAt) &&
+                  routine.endsAt(startsAt).isAfter(startsAt),
+            )
+            .toList();
         if (!mounted) return;
-        if (conflicts.isNotEmpty) {
-          final saveAnyway = await _showConflictWarning(conflicts);
+        if (conflicts.isNotEmpty || routineConflicts.isNotEmpty) {
+          final saveAnyway = await _showConflictWarning(
+            conflicts,
+            routineConflicts,
+          );
           if (!mounted || !saveAnyway) return;
         }
       } catch (error) {
@@ -935,15 +1207,17 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
     );
   }
 
-  Future<bool> _showConflictWarning(List<Activity> conflicts) async {
+  Future<bool> _showConflictWarning(
+    List<Activity> conflicts,
+    List<Routine> routineConflicts,
+  ) async {
+    final count = conflicts.length + routineConflicts.length;
     final proceed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         icon: const Icon(Icons.warning_amber_rounded),
         title: Text(
-          conflicts.length == 1
-              ? 'Activity time conflict'
-              : '${conflicts.length} activity time conflicts',
+          count == 1 ? 'Schedule conflict' : '$count schedule conflicts',
         ),
         content: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
@@ -964,6 +1238,17 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
                       '${DateFormat('MMM d, y').format(conflict.startsAt)} • '
                       '${DateFormat.jm().format(conflict.startsAt)}–'
                       '${DateFormat.jm().format(conflict.endsAt)}',
+                    ),
+                  ),
+                for (final routine in routineConflicts)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    leading: const Icon(Icons.repeat_rounded),
+                    title: Text(routine.name),
+                    subtitle: Text(
+                      'Routine • ${DateFormat.jm().format(routine.startsAt(_date))}–'
+                      '${DateFormat.jm().format(routine.endsAt(_date))}',
                     ),
                   ),
                 const SizedBox(height: 8),
