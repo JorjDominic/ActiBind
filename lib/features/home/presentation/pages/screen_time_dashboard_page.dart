@@ -1,12 +1,62 @@
 import 'package:actibind/core/constants/app_constants.dart';
 import 'package:actibind/core/theme/app_colors.dart';
 import 'package:actibind/features/insights/services/insight_service.dart';
+import 'package:actibind/features/insights/models/insight_metrics.dart';
+import 'package:actibind/features/insights/services/insight_metrics_service.dart';
 import 'package:actibind/shared/widgets/app_page_header.dart';
 import 'package:flutter/material.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
-class ScreenTimeDashboardPage extends StatelessWidget {
+class ScreenTimeDashboardPage extends StatefulWidget {
   const ScreenTimeDashboardPage({super.key});
+
+  @override
+  State<ScreenTimeDashboardPage> createState() =>
+      _ScreenTimeDashboardPageState();
+}
+
+class _ScreenTimeDashboardPageState extends State<ScreenTimeDashboardPage> {
+  String _range = 'Week';
+  InsightMetrics? _metrics;
+  bool _loadingMetrics = true;
+  bool _metricsFailed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMetrics();
+  }
+
+  Future<void> _loadMetrics() async {
+    setState(() {
+      _loadingMetrics = true;
+      _metricsFailed = false;
+    });
+    try {
+      final metrics = await InsightMetricsService.load(
+        days: _range == 'Week' ? 7 : 30,
+      );
+      if (mounted) {
+        setState(() {
+          _metrics = metrics;
+          _loadingMetrics = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _metricsFailed = true;
+          _loadingMetrics = false;
+        });
+      }
+    }
+  }
+
+  void _changeRange(String value) {
+    if (value == _range) return;
+    setState(() => _range = value);
+    _loadMetrics();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,36 +71,58 @@ class ScreenTimeDashboardPage extends StatelessWidget {
                 'Long-term patterns and recommendations from your activity',
           ),
           const SizedBox(height: 14),
-          const _InsightsRangeSelector(),
+          _InsightsRangeSelector(value: _range, onChanged: _changeRange),
           const SizedBox(height: 18),
           const _AiDailyInsight(),
           const SizedBox(height: 20),
+          if (_loadingMetrics) const LinearProgressIndicator(),
+          if (_metricsFailed)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.sync_problem_rounded),
+              title: const Text('Could not sync insight metrics'),
+              trailing: TextButton(
+                onPressed: _loadMetrics,
+                child: const Text('Retry'),
+              ),
+            ),
+          if (_loadingMetrics || _metricsFailed) const SizedBox(height: 12),
           const AppSectionHeader(
             title: 'Progress',
             subtitle: 'How your current habits compare with your goals',
           ),
           const SizedBox(height: 11),
-          const _MetricCard(
-            label: 'Usage Today',
-            value: '4h 12m',
-            subtitle: 'of 6h',
+          _MetricCard(
+            label: _metrics?.todayLabel == 'device usage today'
+                ? 'Usage Today'
+                : 'Activity Today',
+            value: _metrics == null
+                ? '—'
+                : InsightMetricsService.formatDuration(_metrics!.todayValue),
+            subtitle: _metrics?.todayLabel ?? 'syncing activity',
             showCircle: true,
+            progress: _metrics?.goalProgress ?? 0,
             accent: AppColors.indigo,
           ),
           const SizedBox(height: 16),
-          const _MetricCard(
-            label: 'Weekly Average',
-            value: 'T: 4h',
-            subtitle: 'Goal progress and trends',
+          _MetricCard(
+            label: _range == 'Week' ? 'Weekly Average' : 'Monthly Average',
+            value: _metrics == null
+                ? '—'
+                : InsightMetricsService.formatDuration(_metrics!.dailyAverage),
+            subtitle: 'average elapsed activity per day',
             showBars: true,
+            bars: _metrics?.dayLevels,
+            barDurations: _metrics?.dayDurations,
             accent: AppColors.teal,
           ),
           const SizedBox(height: 16),
-          const _MetricCard(
+          _MetricCard(
             label: 'Goal Progress',
-            value: '80%',
-            subtitle: 'Screen Detox',
+            value: '${((_metrics?.goalProgress ?? 0) * 100).round()}%',
+            subtitle: 'of today’s 6h focus goal',
             showProgress: true,
+            progress: _metrics?.goalProgress ?? 0,
             accent: AppColors.amber,
           ),
           const SizedBox(height: 16),
@@ -74,25 +146,33 @@ class ScreenTimeDashboardPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Your strongest focus window is 9:00 AM–11:30 AM.',
+                    _metrics == null
+                        ? 'Syncing your focus pattern…'
+                        : _metrics!.peakWindow ==
+                              'Not enough focus activity yet'
+                        ? _metrics!.peakWindow
+                        : 'Your strongest focus window is ${_metrics!.peakWindow}.',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 18),
                   SizedBox(
-                    height: 112,
+                    height: 128,
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: const [
-                        _DayBar(index: .45),
-                        _DayBar(index: .7),
-                        _DayBar(index: .9),
-                        _DayBar(index: 1),
-                        _DayBar(index: .75),
-                        _DayBar(index: .5),
-                        _DayBar(index: .4),
+                      children: [
+                        for (var index = 0; index < 7; index++)
+                          _DayBar(
+                            index: _metrics?.dayLevels[index] ?? .08,
+                            label: _weekdayLabels[index],
+                            value: _metrics == null
+                                ? null
+                                : InsightMetricsService.formatDuration(
+                                    _metrics!.dayDurations[index],
+                                  ),
+                          ),
                       ],
                     ),
                   ),
@@ -157,6 +237,8 @@ class ScreenTimeDashboardPage extends StatelessWidget {
     );
   }
 
+  static const _weekdayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
   void _showInsightsChat(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
@@ -186,7 +268,9 @@ class _AiDailyInsightState extends State<_AiDailyInsight> {
   @override
   void initState() {
     super.initState();
-    _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _load();
+    });
   }
 
   Future<void> _load() async {
@@ -250,15 +334,11 @@ class _AiDailyInsightState extends State<_AiDailyInsight> {
   );
 }
 
-class _InsightsRangeSelector extends StatefulWidget {
-  const _InsightsRangeSelector();
+class _InsightsRangeSelector extends StatelessWidget {
+  const _InsightsRangeSelector({required this.value, required this.onChanged});
 
-  @override
-  State<_InsightsRangeSelector> createState() => _InsightsRangeSelectorState();
-}
-
-class _InsightsRangeSelectorState extends State<_InsightsRangeSelector> {
-  String range = 'Week';
+  final String value;
+  final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -270,8 +350,8 @@ class _InsightsRangeSelectorState extends State<_InsightsRangeSelector> {
           ButtonSegment(value: 'Week', label: Text('This Week')),
           ButtonSegment(value: 'Month', label: Text('This Month')),
         ],
-        selected: {range},
-        onSelectionChanged: (value) => setState(() => range = value.first),
+        selected: {value},
+        onSelectionChanged: (value) => onChanged(value.first),
       ),
     );
   }
@@ -532,6 +612,9 @@ class _MetricCard extends StatelessWidget {
     this.showCircle = false,
     this.showBars = false,
     this.showProgress = false,
+    this.progress = 0,
+    this.bars,
+    this.barDurations,
     required this.accent,
   });
 
@@ -541,6 +624,9 @@ class _MetricCard extends StatelessWidget {
   final bool showCircle;
   final bool showBars;
   final bool showProgress;
+  final double progress;
+  final List<double>? bars;
+  final List<Duration>? barDurations;
   final Color accent;
 
   @override
@@ -568,7 +654,7 @@ class _MetricCard extends StatelessWidget {
                       width: 120,
                       height: 120,
                       child: CircularProgressIndicator(
-                        value: 0.7,
+                        value: progress,
                         strokeWidth: 12,
                         color: accent,
                       ),
@@ -600,11 +686,27 @@ class _MetricCard extends StatelessWidget {
                   const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: List.generate(
-                      7,
-                      (index) =>
-                          _DayBar(index: index == 3 ? 1.0 : 0.6, color: accent),
-                    ),
+                    children: [
+                      for (var index = 0; index < 7; index++)
+                        _DayBar(
+                          index: bars?[index] ?? .08,
+                          color: accent,
+                          label: const [
+                            'M',
+                            'T',
+                            'W',
+                            'T',
+                            'F',
+                            'S',
+                            'S',
+                          ][index],
+                          value: barDurations == null
+                              ? null
+                              : InsightMetricsService.formatDuration(
+                                  barDurations![index],
+                                ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   Text(subtitle),
@@ -623,7 +725,7 @@ class _MetricCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  LinearProgressIndicator(value: 0.8, color: accent),
+                  LinearProgressIndicator(value: progress, color: accent),
                   const SizedBox(height: 8),
                   Text(subtitle),
                 ],
@@ -651,20 +753,41 @@ class _MetricCard extends StatelessWidget {
 }
 
 class _DayBar extends StatelessWidget {
-  const _DayBar({required this.index, this.color});
+  const _DayBar({required this.index, this.color, this.label, this.value});
 
   final double index;
   final Color? color;
+  final String? label;
+  final String? value;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 18,
-      height: 100 * index,
-      decoration: BoxDecoration(
-        color: color ?? Theme.of(context).colorScheme.primary,
-        borderRadius: BorderRadius.circular(6),
+  Widget build(BuildContext context) => Tooltip(
+    message: value == null ? 'Syncing' : '${label ?? 'Day'}: $value',
+    child: SizedBox(
+      width: 32,
+      height: 120,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Text(
+            value ?? '—',
+            maxLines: 1,
+            overflow: TextOverflow.fade,
+            style: const TextStyle(fontSize: 8, color: AppColors.muted),
+          ),
+          const SizedBox(height: 3),
+          Container(
+            width: 18,
+            height: 88 * index,
+            decoration: BoxDecoration(
+              color: color ?? Theme.of(context).colorScheme.primary,
+              borderRadius: BorderRadius.circular(6),
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(label ?? '', style: const TextStyle(fontSize: 9)),
+        ],
       ),
-    );
-  }
+    ),
+  );
 }

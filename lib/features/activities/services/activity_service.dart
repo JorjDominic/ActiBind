@@ -7,12 +7,42 @@ class ActivityService {
   ActivityService._();
 
   static SupabaseClient get _supabase => SupabaseService.client;
+  static final _cache = <String, _ActivityCacheEntry>{};
+  static final _inFlight = <String, Future<List<Activity>>>{};
+  static const _cacheLifetime = Duration(seconds: 30);
+  static int _cacheRevision = 0;
+  static int get cacheRevision => _cacheRevision;
 
   static Future<List<Activity>> getActivities({
     required DateTime from,
     required DateTime to,
   }) async {
     ActivityValidation.validateRange(from: from, to: to);
+    final key =
+        '${from.toUtc().toIso8601String()}:'
+        '${to.toUtc().toIso8601String()}';
+    final cached = _cache[key];
+    if (cached != null &&
+        DateTime.now().difference(cached.loadedAt) < _cacheLifetime) {
+      return cached.items;
+    }
+    if (_inFlight[key] != null) return _inFlight[key]!;
+    final request = _fetchActivities(from: from, to: to);
+    _inFlight[key] = request;
+    try {
+      final items = await request;
+      _cache[key] = _ActivityCacheEntry(items: items, loadedAt: DateTime.now());
+      if (_cache.length > 8) _cache.remove(_cache.keys.first);
+      return items;
+    } finally {
+      _inFlight.remove(key);
+    }
+  }
+
+  static Future<List<Activity>> _fetchActivities({
+    required DateTime from,
+    required DateTime to,
+  }) async {
     final response = await _supabase
         .from('activities')
         .select()
@@ -112,7 +142,9 @@ class ActivityService {
         })
         .select()
         .single();
-    return Activity.fromJson(response);
+    final activity = Activity.fromJson(response);
+    clearCache();
+    return activity;
   }
 
   static Future<Activity> updateActivity({
@@ -148,11 +180,25 @@ class ActivityService {
         .eq('id', id)
         .select()
         .single();
-    return Activity.fromJson(response);
+    final activity = Activity.fromJson(response);
+    clearCache();
+    return activity;
   }
 
   static Future<void> deleteActivity(String id) async {
     ActivityValidation.validateId(id);
     await _supabase.from('activities').delete().eq('id', id);
+    clearCache();
   }
+
+  static void clearCache() {
+    _cache.clear();
+    _cacheRevision++;
+  }
+}
+
+class _ActivityCacheEntry {
+  const _ActivityCacheEntry({required this.items, required this.loadedAt});
+  final List<Activity> items;
+  final DateTime loadedAt;
 }

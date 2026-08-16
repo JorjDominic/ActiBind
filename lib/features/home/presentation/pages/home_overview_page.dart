@@ -7,6 +7,8 @@ import 'package:actibind/features/activities/models/activity.dart';
 import 'package:actibind/features/activities/services/activity_service.dart';
 import 'package:actibind/features/activities/services/usage_stats_service.dart';
 import 'package:actibind/features/insights/services/insight_service.dart';
+import 'package:actibind/features/insights/models/insight_metrics.dart';
+import 'package:actibind/features/insights/services/insight_metrics_service.dart';
 import 'package:actibind/features/weather/models/current_weather.dart';
 import 'package:actibind/features/weather/services/weather_service.dart';
 import 'package:actibind/features/weather/services/reverse_geocoding_service.dart';
@@ -17,7 +19,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
-class HomeOverviewPage extends StatelessWidget {
+class HomeOverviewPage extends StatefulWidget {
   const HomeOverviewPage({
     super.key,
     required this.displayName,
@@ -32,6 +34,28 @@ class HomeOverviewPage extends StatelessWidget {
   final VoidCallback onImproveWindDown;
   final VoidCallback onPlanWorkout;
   final VoidCallback onPlanPersonal;
+
+  @override
+  State<HomeOverviewPage> createState() => _HomeOverviewPageState();
+}
+
+class _HomeOverviewPageState extends State<HomeOverviewPage> {
+  InsightMetrics? _metrics;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMetrics();
+  }
+
+  Future<void> _loadMetrics() async {
+    try {
+      final metrics = await InsightMetricsService.load(days: 7);
+      if (mounted) setState(() => _metrics = metrics);
+    } catch (_) {
+      // Individual overview cards retain a safe loading state.
+    }
+  }
 
   String get _greeting {
     final hour = DateTime.now().hour;
@@ -64,9 +88,9 @@ class HomeOverviewPage extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.indigo.withValues(alpha: .22),
-                  blurRadius: 24,
-                  offset: const Offset(0, 10),
+                  color: AppColors.indigo.withValues(alpha: .14),
+                  blurRadius: 12,
+                  offset: const Offset(0, 5),
                 ),
               ],
             ),
@@ -87,7 +111,7 @@ class HomeOverviewPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Make today count, $displayName',
+                        'Make today count, ${widget.displayName}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 19,
@@ -96,15 +120,20 @@ class HomeOverviewPage extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      const Text(
-                        'You’ve completed 72% of your focus goal.',
-                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                      Text(
+                        _metrics == null
+                            ? 'Syncing your focus goal…'
+                            : 'You’ve completed ${(_metrics!.goalProgress * 100).round()}% of your focus goal.',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 12),
-                const SizedBox(
+                SizedBox(
                   width: 64,
                   height: 64,
                   child: Stack(
@@ -112,15 +141,15 @@ class HomeOverviewPage extends StatelessWidget {
                     children: [
                       Positioned.fill(
                         child: CircularProgressIndicator(
-                          value: .72,
+                          value: _metrics?.goalProgress ?? 0,
                           strokeWidth: 6,
                           color: Colors.white,
                           backgroundColor: Colors.white24,
                         ),
                       ),
                       Text(
-                        '72%',
-                        style: TextStyle(
+                        '${((_metrics?.goalProgress ?? 0) * 100).round()}%',
+                        style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w800,
                           fontSize: 12,
@@ -135,18 +164,29 @@ class HomeOverviewPage extends StatelessWidget {
           const SizedBox(height: 18),
           const _WeatherCard(),
           const SizedBox(height: 18),
-          const Row(
+          Row(
             children: [
               Expanded(
                 child: _SummaryTile(
                   title: 'Focus today',
-                  value: '4h 20m',
+                  value: _metrics == null
+                      ? '—'
+                      : InsightMetricsService.formatDuration(
+                          Duration(
+                            minutes:
+                                (_metrics!.goalProgress *
+                                        InsightMetricsService
+                                            .dailyFocusGoal
+                                            .inMinutes)
+                                    .round(),
+                          ),
+                        ),
                   subtitle: 'of 6h goal',
                   color: AppColors.indigo,
                 ),
               ),
-              SizedBox(width: 12),
-              Expanded(child: _ConflictSummaryTile()),
+              const SizedBox(width: 12),
+              const Expanded(child: _ConflictSummaryTile()),
             ],
           ),
           const SizedBox(height: 24),
@@ -169,25 +209,25 @@ class HomeOverviewPage extends StatelessWidget {
                   icon: Icons.lock_clock,
                   title: 'Focus time',
                   color: AppColors.indigo,
-                  onTap: onStartFocus,
+                  onTap: widget.onStartFocus,
                 ),
                 _ActionCard(
                   icon: Icons.nightlight_round,
                   title: 'Wind-down',
                   color: AppColors.teal,
-                  onTap: onImproveWindDown,
+                  onTap: widget.onImproveWindDown,
                 ),
                 _ActionCard(
                   icon: Icons.fitness_center_rounded,
                   title: 'Workout',
                   color: AppColors.coral,
-                  onTap: onPlanWorkout,
+                  onTap: widget.onPlanWorkout,
                 ),
                 _ActionCard(
                   icon: Icons.checklist_rounded,
                   title: 'Personal task',
                   color: AppColors.amber,
-                  onTap: onPlanPersonal,
+                  onTap: widget.onPlanPersonal,
                 ),
               ],
             ),
@@ -222,7 +262,9 @@ class _AiHomeInsightState extends State<_AiHomeInsight> {
   @override
   void initState() {
     super.initState();
-    _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _load();
+    });
   }
 
   Future<void> _load() async {
@@ -726,6 +768,8 @@ class _HomeAppIcon extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             child: Image.memory(
               bytes!,
+              cacheWidth: 48,
+              cacheHeight: 48,
               fit: BoxFit.cover,
               errorBuilder: (_, _, _) => const Icon(
                 Icons.apps_rounded,

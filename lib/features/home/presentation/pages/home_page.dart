@@ -7,6 +7,8 @@ import 'package:actibind/features/home/presentation/pages/settings_page.dart';
 import 'package:actibind/features/home/presentation/pages/screen_time_dashboard_page.dart';
 import 'package:actibind/features/activities/presentation/widgets/activity_schedule_view.dart';
 import 'package:actibind/features/activities/services/activity_service.dart';
+import 'package:actibind/features/activities/services/activity_validation.dart';
+import 'package:actibind/features/insights/services/insight_metrics_service.dart';
 import 'package:actibind/shared/widgets/actibind_logo.dart';
 import 'package:actibind/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
@@ -24,11 +26,13 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   _Destination _selected = _Destination.home;
+  final Map<_Destination, Widget> _pages = {};
 
   @override
   void initState() {
     super.initState();
     FamilyModeController.instance.addListener(_handleFamilyModeChange);
+    _pages[_Destination.home] = _buildPage(_Destination.home);
   }
 
   @override
@@ -41,13 +45,36 @@ class _HomePageState extends State<HomePage> {
     if (!FamilyModeController.instance.enabled &&
         _selected == _Destination.family) {
       _selected = _Destination.home;
+      _pages.putIfAbsent(
+        _Destination.home,
+        () => _buildPage(_Destination.home),
+      );
     }
     if (mounted) setState(() {});
   }
 
   void _onItemTapped(_Destination destination) {
+    _pages.putIfAbsent(destination, () => _buildPage(destination));
     setState(() => _selected = destination);
   }
+
+  Widget _buildPage(_Destination destination) => switch (destination) {
+    _Destination.home => HomeOverviewPage(
+      displayName: widget.displayName,
+      onStartFocus: () =>
+          _createQuickActivity(name: 'Focus Session', category: 'Focus'),
+      onImproveWindDown: () =>
+          _createQuickActivity(name: 'Wind-down Routine', category: 'Sleep'),
+      onPlanWorkout: () =>
+          _createQuickActivity(name: 'Workout', category: 'Exercise'),
+      onPlanPersonal: () =>
+          _createQuickActivity(name: 'Personal Task', category: 'Personal'),
+    ),
+    _Destination.activity => const ActivityLedgerPage(),
+    _Destination.insights => const ScreenTimeDashboardPage(),
+    _Destination.family => const FamilyPage(),
+    _Destination.settings => SettingsPage(onSignOut: widget.onSignOut),
+  };
 
   Future<void> _createQuickActivity({
     required String name,
@@ -76,6 +103,10 @@ class _HomePageState extends State<HomePage> {
         warnConflicts: draft.warnConflicts,
       );
       if (!mounted) return;
+      _pages.putIfAbsent(
+        _Destination.activity,
+        () => _buildPage(_Destination.activity),
+      );
       setState(() => _selected = _Destination.activity);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${draft.name} added to your schedule.')),
@@ -90,24 +121,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final page = switch (_selected) {
-      _Destination.home => HomeOverviewPage(
-        displayName: widget.displayName,
-        onStartFocus: () =>
-            _createQuickActivity(name: 'Focus Session', category: 'Focus'),
-        onImproveWindDown: () =>
-            _createQuickActivity(name: 'Wind-down Routine', category: 'Sleep'),
-        onPlanWorkout: () =>
-            _createQuickActivity(name: 'Workout', category: 'Exercise'),
-        onPlanPersonal: () =>
-            _createQuickActivity(name: 'Personal Task', category: 'Personal'),
-      ),
-      _Destination.activity => const ActivityLedgerPage(),
-      _Destination.insights => const ScreenTimeDashboardPage(),
-      _Destination.family => const FamilyPage(),
-      _Destination.settings => SettingsPage(onSignOut: widget.onSignOut),
-    };
-
     return LayoutBuilder(
       builder: (context, constraints) {
         return shad.Scaffold(
@@ -159,9 +172,15 @@ class _HomePageState extends State<HomePage> {
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 960),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 180),
-                child: KeyedSubtree(key: ValueKey(_selected), child: page),
+              child: IndexedStack(
+                index: _Destination.values.indexOf(_selected),
+                children: [
+                  for (final destination in _Destination.values)
+                    TickerMode(
+                      enabled: destination == _selected,
+                      child: _pages[destination] ?? const SizedBox.shrink(),
+                    ),
+                ],
               ),
             ),
           ),
@@ -209,55 +228,161 @@ class _NotificationsButton extends StatelessWidget {
     showModalBottomSheet<void>(
       context: context,
       useSafeArea: true,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.fromLTRB(18, 14, 18, 22),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Notifications',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
+      builder: (context) => const _NotificationsSheet(),
+    );
+  }
+}
+
+class _NotificationsSheet extends StatefulWidget {
+  const _NotificationsSheet();
+
+  @override
+  State<_NotificationsSheet> createState() => _NotificationsSheetState();
+}
+
+class _NotificationsSheetState extends State<_NotificationsSheet> {
+  _NotificationData? _data;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _failed = false);
+    try {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final results = await Future.wait([
+        ActivityService.getActivities(
+          from: today,
+          to: today.add(const Duration(days: 7)),
+        ),
+        InsightMetricsService.load(days: 7),
+      ]);
+      final activities = results[0] as List<dynamic>;
+      final metrics = results[1] as dynamic;
+      final conflictingIds = <String>{};
+      for (var first = 0; first < activities.length; first++) {
+        for (var second = first + 1; second < activities.length; second++) {
+          final a = activities[first];
+          final b = activities[second];
+          if (ActivityValidation.intervalsOverlap(
+            firstStart: a.startsAt,
+            firstEnd: a.endsAt,
+            secondStart: b.startsAt,
+            secondEnd: b.endsAt,
+          )) {
+            conflictingIds
+              ..add(a.id as String)
+              ..add(b.id as String);
+          }
+        }
+      }
+      final upcoming = activities
+          .where((item) => item.startsAt.isAfter(now))
+          .cast<dynamic>()
+          .firstOrNull;
+      if (mounted) {
+        setState(
+          () => _data = _NotificationData(
+            conflictCount: conflictingIds.length,
+            goalPercent: (metrics.goalProgress * 100).round() as int,
+            upcomingName: upcoming?.name as String?,
+            upcomingTime: upcoming?.startsAt as DateTime?,
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final data = _data;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 22),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Notifications',
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
-                TextButton(
-                  onPressed: () {},
-                  child: const Text('Mark all read'),
-                ),
-              ],
+              ),
+              IconButton(
+                tooltip: 'Refresh notifications',
+                onPressed: _load,
+                icon: const Icon(Icons.refresh_rounded),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (data == null && !_failed) const LinearProgressIndicator(),
+          if (_failed)
+            ListTile(
+              title: const Text('Could not sync notifications'),
+              trailing: TextButton(
+                onPressed: _load,
+                child: const Text('Retry'),
+              ),
             ),
-            const SizedBox(height: 8),
-            const _NotificationTile(
-              icon: Icons.warning_amber_rounded,
-              color: AppColors.amber,
-              title: 'Focus conflict detected',
-              detail: 'TikTok was active during your Study block.',
-              time: '12 min ago',
-            ),
-            const Divider(height: 1),
-            const _NotificationTile(
+          if (data != null) ...[
+            if (data.conflictCount > 0) ...[
+              _NotificationTile(
+                icon: Icons.warning_amber_rounded,
+                color: AppColors.amber,
+                title: '${data.conflictCount} conflicting activities',
+                detail: 'Open Activity to review the overlapping schedules.',
+                time: 'Current schedule',
+              ),
+              const Divider(height: 1),
+            ],
+            _NotificationTile(
               icon: Icons.insights_rounded,
               color: AppColors.teal,
-              title: 'Weekly insight ready',
-              detail: 'Your focused time improved by 15% this week.',
-              time: '2h ago',
+              title: 'Focus goal progress',
+              detail:
+                  'You have completed ${data.goalPercent}% of today’s focus goal.',
+              time: 'Synced now',
             ),
-            const Divider(height: 1),
-            const _NotificationTile(
-              icon: Icons.schedule_rounded,
-              color: AppColors.indigo,
-              title: 'Project Work starts soon',
-              detail: 'Your next scheduled block begins at 3:00 PM.',
-              time: 'Today',
-            ),
+            if (data.upcomingName != null) ...[
+              const Divider(height: 1),
+              _NotificationTile(
+                icon: Icons.schedule_rounded,
+                color: AppColors.indigo,
+                title: '${data.upcomingName} is next',
+                detail:
+                    'Starts at ${TimeOfDay.fromDateTime(data.upcomingTime!).format(context)}.',
+                time: 'Upcoming',
+              ),
+            ],
           ],
-        ),
+        ],
       ),
     );
   }
+}
+
+class _NotificationData {
+  const _NotificationData({
+    required this.conflictCount,
+    required this.goalPercent,
+    this.upcomingName,
+    this.upcomingTime,
+  });
+
+  final int conflictCount;
+  final int goalPercent;
+  final String? upcomingName;
+  final DateTime? upcomingTime;
 }
 
 class _NotificationTile extends StatelessWidget {

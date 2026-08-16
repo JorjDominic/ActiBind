@@ -10,13 +10,18 @@ import android.graphics.Canvas
 import android.graphics.drawable.Drawable
 import android.os.Process
 import android.provider.Settings
+import android.util.LruCache
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayOutputStream
+import java.util.concurrent.Executors
 
 class MainActivity : FlutterActivity() {
     private val channelName = "com.example.actibind/usage_stats"
+    private val usageExecutor = Executors.newSingleThreadExecutor()
+    private val iconCache = LruCache<String, ByteArray>(64)
+    @Volatile private var labelCache: Map<String, String>? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -36,12 +41,30 @@ class MainActivity : FlutterActivity() {
                         } else if (!hasUsageStatsPermission()) {
                             result.error("PERMISSION_DENIED", "Usage access has not been granted", null)
                         } else {
-                            result.success(queryUsageStats(start, end))
+                            usageExecutor.execute {
+                                try {
+                                    val rows = queryUsageStats(start, end)
+                                    runOnUiThread { result.success(rows) }
+                                } catch (error: Exception) {
+                                    runOnUiThread {
+                                        result.error(
+                                            "USAGE_QUERY_FAILED",
+                                            "Unable to read usage activity",
+                                            error.message,
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    override fun onDestroy() {
+        usageExecutor.shutdownNow()
+        super.onDestroy()
     }
 
     private fun hasUsageStatsPermission(): Boolean {
@@ -57,13 +80,16 @@ class MainActivity : FlutterActivity() {
     private fun queryUsageStats(start: Long, end: Long): List<Map<String, Any?>> {
         val manager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         val packageManager = applicationContext.packageManager
-        val installedLabels = installedAppLabels(packageManager)
+        val installedLabels = labelCache ?: installedAppLabels(packageManager).also {
+            labelCache = it
+        }
         return manager.queryAndAggregateUsageStats(start, end)
             .values
             .asSequence()
             .filter { it.totalTimeInForeground > 0 && it.packageName != packageName }
             .sortedByDescending { it.totalTimeInForeground }
-            .map { stats ->
+            .take(50)
+            .mapIndexed { index, stats ->
                 val label = installedLabels[stats.packageName] ?: try {
                     val info = packageManager.getApplicationInfo(stats.packageName, 0)
                     packageManager.getApplicationLabel(info).toString()
@@ -75,7 +101,9 @@ class MainActivity : FlutterActivity() {
                     "appName" to label,
                     "foregroundMs" to stats.totalTimeInForeground,
                     "lastTimeUsed" to stats.lastTimeUsed,
-                    "icon" to appIcon(packageManager, stats.packageName),
+                    // Only the most relevant rows need icons. Remaining rows still
+                    // contribute to totals without bloating the platform message.
+                    "icon" to if (index < 20) appIcon(packageManager, stats.packageName) else null,
                 )
             }
             .toList()
@@ -113,8 +141,11 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun appIcon(packageManager: PackageManager, packageName: String): ByteArray? {
+        iconCache.get(packageName)?.let { return it }
         return try {
-            drawableToPng(packageManager.getApplicationIcon(packageName))
+            drawableToPng(packageManager.getApplicationIcon(packageName)).also {
+                iconCache.put(packageName, it)
+            }
         } catch (_: Exception) {
             null
         }

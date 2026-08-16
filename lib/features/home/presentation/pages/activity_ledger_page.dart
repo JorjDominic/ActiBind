@@ -1768,57 +1768,6 @@ class _UsageSummary extends StatelessWidget {
 }
 
 // ignore: unused_element
-class _WeeklyUsage extends StatelessWidget {
-  const _WeeklyUsage();
-  @override
-  Widget build(BuildContext context) => shad.Card(
-    child: const Padding(
-      padding: EdgeInsets.all(16),
-      child: Column(
-        children: [
-          _WeekUsageRow(day: 'Mon', usage: '4h 12m', value: .70),
-          _WeekUsageRow(day: 'Tue', usage: '3h 48m', value: .63),
-          _WeekUsageRow(day: 'Wed', usage: '5h 02m', value: .84),
-          _WeekUsageRow(day: 'Thu', usage: '4h 18m', value: .72),
-        ],
-      ),
-    ),
-  );
-}
-
-class _WeekUsageRow extends StatelessWidget {
-  const _WeekUsageRow({
-    required this.day,
-    required this.usage,
-    required this.value,
-  });
-  final String day;
-  final String usage;
-  final double value;
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 7),
-    child: Row(
-      children: [
-        SizedBox(
-          width: 38,
-          child: Text(day, style: const TextStyle(fontWeight: FontWeight.w700)),
-        ),
-        Expanded(
-          child: LinearProgressIndicator(
-            value: value,
-            minHeight: 7,
-            borderRadius: BorderRadius.circular(7),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Text(usage),
-      ],
-    ),
-  );
-}
-
-// ignore: unused_element
 class _UsageChart extends StatelessWidget {
   const _UsageChart();
   @override
