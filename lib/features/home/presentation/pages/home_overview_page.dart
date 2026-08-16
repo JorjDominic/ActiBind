@@ -6,6 +6,7 @@ import 'package:actibind/features/activities/models/app_usage.dart';
 import 'package:actibind/features/activities/models/activity.dart';
 import 'package:actibind/features/activities/services/activity_service.dart';
 import 'package:actibind/features/activities/services/usage_stats_service.dart';
+import 'package:actibind/features/insights/services/insight_service.dart';
 import 'package:actibind/features/weather/models/current_weather.dart';
 import 'package:actibind/features/weather/services/weather_service.dart';
 import 'package:actibind/features/weather/services/reverse_geocoding_service.dart';
@@ -199,36 +200,83 @@ class HomeOverviewPage extends StatelessWidget {
             subtitle: 'A pattern worth knowing from your recent activity',
           ),
           const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.teal.withValues(alpha: .13),
-                  AppColors.indigo.withValues(alpha: .09),
-                ],
-              ),
-              border: Border.all(color: AppColors.teal.withValues(alpha: .18)),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: const Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.lightbulb_outline_rounded, color: AppColors.teal),
-                SizedBox(width: 11),
-                Expanded(
-                  child: Text(
-                    'Your best focus window is 9:00–11:30 AM. Protect that time for your most important work.',
-                    style: TextStyle(fontSize: 15, height: 1.4),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const _AiHomeInsight(),
         ],
       ),
     );
   }
+}
+
+class _AiHomeInsight extends StatefulWidget {
+  const _AiHomeInsight();
+
+  @override
+  State<_AiHomeInsight> createState() => _AiHomeInsightState();
+}
+
+class _AiHomeInsightState extends State<_AiHomeInsight> {
+  String? _insight;
+  bool _loading = true;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _failed = false;
+    });
+    try {
+      final insight = await InsightService.generateHomeInsight();
+      if (mounted) setState(() => _insight = insight);
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        colors: [
+          AppColors.teal.withValues(alpha: .13),
+          AppColors.indigo.withValues(alpha: .09),
+        ],
+      ),
+      border: Border.all(color: AppColors.teal.withValues(alpha: .18)),
+      borderRadius: BorderRadius.circular(18),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(Icons.auto_awesome_rounded, color: AppColors.teal),
+        const SizedBox(width: 11),
+        Expanded(
+          child: _loading && _insight == null
+              ? const LinearProgressIndicator()
+              : Text(
+                  _failed && _insight == null
+                      ? 'AI insight is unavailable right now. Tap retry to try again.'
+                      : _insight!,
+                  style: const TextStyle(fontSize: 15, height: 1.4),
+                ),
+        ),
+        if (_failed || _insight != null)
+          IconButton(
+            tooltip: _failed ? 'Retry insight' : 'Refresh insight',
+            onPressed: _loading ? null : _load,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+      ],
+    ),
+  );
 }
 
 class _WeatherCard extends StatefulWidget {

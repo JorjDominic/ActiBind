@@ -1,5 +1,6 @@
 import 'package:actibind/core/constants/app_constants.dart';
 import 'package:actibind/core/theme/app_colors.dart';
+import 'package:actibind/features/insights/services/insight_service.dart';
 import 'package:actibind/shared/widgets/app_page_header.dart';
 import 'package:flutter/material.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
@@ -22,32 +23,7 @@ class ScreenTimeDashboardPage extends StatelessWidget {
           const SizedBox(height: 14),
           const _InsightsRangeSelector(),
           const SizedBox(height: 18),
-          shad.Card(
-            filled: true,
-            fillColor: AppColors.teal.withValues(alpha: .09),
-            borderColor: AppColors.teal.withValues(alpha: .2),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    'Daily Insight',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.teal,
-                    ),
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    'You’re 15% more focused than last Tuesday. Keep the momentum!',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          const _AiDailyInsight(),
           const SizedBox(height: 20),
           const AppSectionHeader(
             title: 'Progress',
@@ -195,6 +171,85 @@ class ScreenTimeDashboardPage extends StatelessWidget {
   }
 }
 
+class _AiDailyInsight extends StatefulWidget {
+  const _AiDailyInsight();
+
+  @override
+  State<_AiDailyInsight> createState() => _AiDailyInsightState();
+}
+
+class _AiDailyInsightState extends State<_AiDailyInsight> {
+  String? _insight;
+  bool _loading = true;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _failed = false;
+    });
+    try {
+      final insight = await InsightService.generateDailyInsight();
+      if (mounted) setState(() => _insight = insight);
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => shad.Card(
+    filled: true,
+    fillColor: AppColors.teal.withValues(alpha: .09),
+    borderColor: AppColors.teal.withValues(alpha: .2),
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Daily Insight',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.teal,
+                  ),
+                ),
+              ),
+              if (_failed || _insight != null)
+                IconButton(
+                  tooltip: _failed ? 'Retry insight' : 'Refresh insight',
+                  onPressed: _loading ? null : _load,
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_loading && _insight == null)
+            const LinearProgressIndicator()
+          else
+            Text(
+              _failed && _insight == null
+                  ? 'Daily insight is unavailable. Check your connection and try again.'
+                  : _insight!,
+              style: const TextStyle(fontSize: 16, height: 1.4),
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
 class _InsightsRangeSelector extends StatefulWidget {
   const _InsightsRangeSelector();
 
@@ -239,6 +294,7 @@ class _InsightsChatSheetState extends State<_InsightsChatSheet> {
       isUser: false,
     ),
   ];
+  bool _sending = false;
 
   static const _suggestions = [
     'When do I focus best?',
@@ -253,20 +309,50 @@ class _InsightsChatSheetState extends State<_InsightsChatSheet> {
     super.dispose();
   }
 
-  void _send([String? suggestion]) {
+  Future<void> _send([String? suggestion]) async {
     final text = (suggestion ?? _controller.text).trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _sending) return;
+    final history = _messages
+        .skip(1)
+        .map(
+          (message) => InsightChatMessage(
+            role: message.isUser ? 'user' : 'assistant',
+            content: message.text,
+          ),
+        )
+        .toList(growable: false);
     _controller.clear();
     setState(() {
       _messages.add(_InsightMessage(text: text, isUser: true));
-      _messages.add(
-        const _InsightMessage(
-          text:
-              'Based on your current sample data, your strongest focus window is 9:00–11:30 AM. Protecting that window and moving distracting apps out of reach could improve your daily goal progress.',
-          isUser: false,
-        ),
-      );
+      _sending = true;
     });
+    _scrollToBottom();
+    try {
+      final reply = await InsightService.ask(question: text, history: history);
+      if (mounted) {
+        setState(
+          () => _messages.add(_InsightMessage(text: reply, isUser: false)),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _messages.add(
+            const _InsightMessage(
+              text:
+                  'I could not generate an insight right now. Check your connection and try again.',
+              isUser: false,
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+    _scrollToBottom();
+  }
+
+  void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -325,12 +411,23 @@ class _InsightsChatSheetState extends State<_InsightsChatSheet> {
         ),
         const Divider(height: 1),
         Expanded(
-          child: ListView.builder(
-            controller: _scrollController,
-            padding: const EdgeInsets.all(16),
-            itemCount: _messages.length,
-            itemBuilder: (context, index) =>
-                _ChatBubble(message: _messages[index]),
+          child: Column(
+            children: [
+              Expanded(
+                child: ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _messages.length,
+                  itemBuilder: (context, index) =>
+                      _ChatBubble(message: _messages[index]),
+                ),
+              ),
+              if (_sending)
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: LinearProgressIndicator(),
+                ),
+            ],
           ),
         ),
         if (_messages.length == 1)
@@ -343,7 +440,7 @@ class _InsightsChatSheetState extends State<_InsightsChatSheet> {
                   ActionChip(
                     label: Text(suggestion),
                     avatar: const Icon(Icons.arrow_outward_rounded, size: 16),
-                    onPressed: () => _send(suggestion),
+                    onPressed: _sending ? null : () => _send(suggestion),
                   ),
                   const SizedBox(width: 8),
                 ],
@@ -370,7 +467,7 @@ class _InsightsChatSheetState extends State<_InsightsChatSheet> {
                 prefixIcon: const Icon(Icons.chat_bubble_outline_rounded),
                 suffixIcon: IconButton(
                   tooltip: 'Send',
-                  onPressed: _send,
+                  onPressed: _sending ? null : _send,
                   icon: const Icon(Icons.send_rounded),
                 ),
                 border: OutlineInputBorder(

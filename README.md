@@ -2,6 +2,22 @@
 
 A new Flutter project.
 
+## Groq-powered insights
+
+AI insights are proxied through the authenticated `groq-insights` Supabase Edge
+Function. Never put a Groq API key in Flutter source code or a `--dart-define`,
+because values shipped in a client application can be extracted.
+
+After creating a fresh Groq key, configure and deploy the function:
+
+```powershell
+supabase secrets set GROQ_API_KEY=your_new_key
+supabase functions deploy groq-insights
+```
+
+The optional `GROQ_MODEL` secret can override the default
+`llama-3.1-8b-instant` production model.
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.
