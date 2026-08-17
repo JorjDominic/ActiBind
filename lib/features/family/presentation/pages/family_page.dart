@@ -164,9 +164,17 @@ class _FamilyPageState extends State<FamilyPage> {
             onPressed: _loading ? null : () => _openForm(),
             icon: const Icon(Icons.person_add_alt_1_rounded),
             label: const Text('Add Child'),
+            style: OutlinedButton.styleFrom(
+              backgroundColor: AppColors.coral.withValues(alpha: .06),
+              foregroundColor: AppColors.coral,
+              side: BorderSide(color: AppColors.coral.withValues(alpha: .28)),
+            ),
           ),
           const SizedBox(height: 24),
           shad.Card(
+            filled: true,
+            fillColor: AppColors.indigo.withValues(alpha: .055),
+            borderColor: AppColors.indigo.withValues(alpha: .18),
             child: Padding(
               padding: const EdgeInsets.all(18),
               child: Row(
@@ -293,6 +301,9 @@ class _FamilySummary extends StatelessWidget {
       ('Off', 'Child mode', Icons.phone_android_rounded, AppColors.amber),
     ];
     return shad.Card(
+      filled: true,
+      fillColor: AppColors.coral.withValues(alpha: .035),
+      borderColor: AppColors.coral.withValues(alpha: .14),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: LayoutBuilder(
@@ -305,26 +316,35 @@ class _FamilySummary extends StatelessWidget {
                   width: constraints.maxWidth < 520
                       ? (constraints.maxWidth - 10) / 2
                       : (constraints.maxWidth - 30) / 4,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(item.$3, color: item.$4, size: 20),
-                      const SizedBox(height: 7),
-                      Text(
-                        item.$1,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: item.$4.withValues(alpha: .085),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(item.$3, color: item.$4, size: 20),
+                        const SizedBox(height: 7),
+                        Text(
+                          item.$1,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
-                      ),
-                      Text(
-                        item.$2,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        Text(
+                          item.$2,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
             ],
@@ -347,6 +367,9 @@ class _ChildCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => shad.Card(
+    filled: true,
+    fillColor: child.color.withValues(alpha: .045),
+    borderColor: child.color.withValues(alpha: .2),
     child: InkWell(
       borderRadius: BorderRadius.circular(18),
       onTap: () => Navigator.of(
@@ -630,11 +653,20 @@ class _ChildModeSheetState extends State<_ChildModeSheet> {
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
   @override
-  Widget build(BuildContext context) => const Padding(
-    padding: EdgeInsets.symmetric(vertical: 28),
-    child: Column(
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+    decoration: BoxDecoration(
+      color: AppColors.coral.withValues(alpha: .055),
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: AppColors.coral.withValues(alpha: .16)),
+    ),
+    child: const Column(
       children: [
-        Icon(Icons.family_restroom_rounded, size: 42, color: AppColors.muted),
+        CircleAvatar(
+          radius: 25,
+          backgroundColor: Color(0xFFFFE9E6),
+          child: Icon(Icons.groups_rounded, size: 28, color: AppColors.coral),
+        ),
         SizedBox(height: 10),
         Text(
           'No child profiles yet',

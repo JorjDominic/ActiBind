@@ -346,7 +346,7 @@ class _NotificationsSheetState extends State<_NotificationsSheet> {
               const Divider(height: 1),
             ],
             _NotificationTile(
-              icon: Icons.insights_rounded,
+              icon: Icons.bar_chart_rounded,
               color: AppColors.teal,
               title: 'Focus goal progress',
               detail:
@@ -510,9 +510,9 @@ class _AppNavigation extends StatelessWidget {
 
 enum _Destination {
   home('Home', Icons.home_rounded, AppColors.indigo),
-  activity('Activity', Icons.view_timeline_rounded, AppColors.teal),
-  insights('Insights', Icons.insights_rounded, AppColors.amber),
-  family('Family', Icons.family_restroom_rounded, AppColors.coral),
+  activity('Activity', Icons.calendar_month_rounded, AppColors.teal),
+  insights('Insights', Icons.bar_chart_rounded, AppColors.amber),
+  family('Family', Icons.groups_rounded, AppColors.coral),
   settings('Settings', Icons.settings_rounded, Color(0xFF667085));
 
   const _Destination(this.title, this.icon, this.color);

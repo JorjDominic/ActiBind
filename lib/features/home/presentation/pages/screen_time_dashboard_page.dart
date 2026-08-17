@@ -79,11 +79,11 @@ class _ScreenTimeDashboardPageState extends State<ScreenTimeDashboardPage> {
             subtitle:
                 'Long-term patterns and recommendations from your activity',
           ),
-          const SizedBox(height: 14),
-          _InsightsRangeSelector(value: _range, onChanged: _changeRange),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
+          _AssistantBanner(onTap: () => _showInsightsChat(context)),
+          const SizedBox(height: 12),
           const _AiDailyInsight(),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           if (_loadingMetrics) const LinearProgressIndicator(),
           if (_metricsFailed)
             ListTile(
@@ -96,62 +96,49 @@ class _ScreenTimeDashboardPageState extends State<ScreenTimeDashboardPage> {
               ),
             ),
           if (_loadingMetrics || _metricsFailed) const SizedBox(height: 12),
-          const AppSectionHeader(
-            title: 'Progress',
-            subtitle: 'How your current habits compare with your goals',
+          Row(
+            children: [
+              const Expanded(
+                child: AppSectionHeader(
+                  title: 'At a glance',
+                  subtitle: 'Your progress, without the noise',
+                ),
+              ),
+              _InsightsRangeSelector(value: _range, onChanged: _changeRange),
+            ],
           ),
-          const SizedBox(height: 11),
-          _MetricCard(
-            label: _metrics?.todayLabel == 'device usage today'
-                ? 'Usage Today'
-                : 'Activity Today',
-            value: _metrics == null
+          const SizedBox(height: 8),
+          _CompactMetrics(
+            todayLabel: _metrics?.todayLabel == 'device usage today'
+                ? 'Usage today'
+                : 'Activity today',
+            todayValue: _metrics == null
                 ? '—'
                 : InsightMetricsService.formatDuration(_metrics!.todayValue),
-            subtitle: _metrics?.todayLabel ?? 'syncing activity',
-            showCircle: true,
-            progress: _metrics?.goalProgress ?? 0,
-            accent: AppColors.indigo,
-          ),
-          const SizedBox(height: 16),
-          _MetricCard(
-            label: _range == 'Week' ? 'Weekly Average' : 'Monthly Average',
-            value: _metrics == null
+            averageValue: _metrics == null
                 ? '—'
                 : InsightMetricsService.formatDuration(_metrics!.dailyAverage),
-            subtitle: _averageSubtitle,
-            showBars: true,
-            bars: _metrics?.dayLevels,
-            barDurations: _metrics?.dayDurations,
-            accent: AppColors.teal,
-          ),
-          const SizedBox(height: 16),
-          _MetricCard(
-            label: 'Goal Progress',
-            value: '${((_metrics?.goalProgress ?? 0) * 100).round()}%',
-            subtitle: 'of today’s 6h focus goal',
-            showProgress: true,
+            averageSubtitle: _averageSubtitle,
             progress: _metrics?.goalProgress ?? 0,
-            accent: AppColors.amber,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           const AppSectionHeader(
-            title: 'Patterns',
-            subtitle: 'When your focus tends to be strongest',
+            title: 'Your rhythm',
+            subtitle: 'See when focused activity naturally peaks',
           ),
-          const SizedBox(height: 11),
+          const SizedBox(height: 8),
           shad.Card(
             filled: true,
             fillColor: AppColors.amber.withValues(alpha: .07),
             borderColor: AppColors.amber.withValues(alpha: .2),
             child: Padding(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
                     'Productive peak hours',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -165,9 +152,9 @@ class _ScreenTimeDashboardPageState extends State<ScreenTimeDashboardPage> {
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 10),
                   SizedBox(
-                    height: 128,
+                    height: 96,
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -189,58 +176,7 @@ class _ScreenTimeDashboardPageState extends State<ScreenTimeDashboardPage> {
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          shad.Card(
-            filled: true,
-            fillColor: AppColors.indigo.withValues(alpha: .07),
-            borderColor: AppColors.indigo.withValues(alpha: .2),
-            child: Padding(
-              padding: const EdgeInsets.all(17),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: AppColors.indigo.withValues(alpha: .14),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Icon(
-                      Icons.auto_awesome_rounded,
-                      color: AppColors.indigo,
-                    ),
-                  ),
-                  const SizedBox(width: 13),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Ask ActiBind',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          'Turn your activity patterns into practical next steps.',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton.filledTonal(
-                    tooltip: 'Open insights assistant',
-                    onPressed: () => _showInsightsChat(context),
-                    icon: const Icon(Icons.chat_bubble_outline_rounded),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          const SizedBox(height: 24),
         ],
       ),
     );
@@ -254,12 +190,238 @@ class _ScreenTimeDashboardPageState extends State<ScreenTimeDashboardPage> {
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
+      showDragHandle: true,
       builder: (_) => const FractionallySizedBox(
-        heightFactor: .82,
+        heightFactor: .9,
         child: _InsightsChatSheet(),
       ),
     );
   }
+}
+
+class _CompactMetrics extends StatelessWidget {
+  const _CompactMetrics({
+    required this.todayLabel,
+    required this.todayValue,
+    required this.averageValue,
+    required this.averageSubtitle,
+    required this.progress,
+  });
+
+  final String todayLabel;
+  final String todayValue;
+  final String averageValue;
+  final String averageSubtitle;
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final goalPercent = (progress * 100).round();
+    return shad.Card(
+      filled: true,
+      fillColor: colors.surface,
+      borderColor: AppColors.indigo.withValues(alpha: .18),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _MetricTile(
+                    icon: Icons.timer_outlined,
+                    label: todayLabel,
+                    value: todayValue,
+                    color: AppColors.indigo,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _MetricTile(
+                    icon: Icons.trending_up_rounded,
+                    label: 'Daily average',
+                    value: averageValue,
+                    color: AppColors.teal,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.amber.withValues(alpha: .09),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.flag_outlined,
+                    size: 20,
+                    color: AppColors.amber,
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                'Focus goal',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                            Text(
+                              '$goalPercent%',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.amber,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 7),
+                        LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 7,
+                          borderRadius: BorderRadius.circular(8),
+                          color: AppColors.amber,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 7),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                averageSubtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MetricTile extends StatelessWidget {
+  const _MetricTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: .09),
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: Row(
+      children: [
+        Icon(icon, size: 19, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                maxLines: 1,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _AssistantBanner extends StatelessWidget {
+  const _AssistantBanner({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: 'Chat with the ActiBind insights assistant',
+    hint: 'Ask questions about your activity and focus patterns',
+    child: Material(
+      color: AppColors.indigo,
+      borderRadius: BorderRadius.circular(20),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .16),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: const Icon(Icons.forum_rounded, color: Colors.white),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Ask your Insights Assistant',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Get a quick answer from your activity data',
+                      style: TextStyle(color: Color(0xFFE7E7FF), fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.arrow_forward_rounded, color: Colors.white),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _AiDailyInsight extends StatefulWidget {
@@ -273,6 +435,7 @@ class _AiDailyInsightState extends State<_AiDailyInsight> {
   String? _insight;
   bool _loading = true;
   bool _failed = false;
+  bool _expanded = false;
 
   @override
   void initState() {
@@ -286,6 +449,7 @@ class _AiDailyInsightState extends State<_AiDailyInsight> {
     setState(() {
       _loading = true;
       _failed = false;
+      _expanded = false;
     });
     try {
       final insight = await InsightService.generateDailyInsight();
@@ -300,20 +464,34 @@ class _AiDailyInsightState extends State<_AiDailyInsight> {
   @override
   Widget build(BuildContext context) => shad.Card(
     filled: true,
-    fillColor: AppColors.teal.withValues(alpha: .09),
-    borderColor: AppColors.teal.withValues(alpha: .2),
+    fillColor: AppColors.teal.withValues(alpha: .12),
+    borderColor: AppColors.teal.withValues(alpha: .32),
     child: Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
+              Container(
+                width: 30,
+                height: 30,
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.teal.withValues(alpha: .16),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 16,
+                  color: AppColors.teal,
+                ),
+              ),
               const Expanded(
                 child: Text(
-                  'Daily Insight',
+                  'Today’s smart takeaway',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 13,
                     fontWeight: FontWeight.bold,
                     color: AppColors.teal,
                   ),
@@ -327,7 +505,7 @@ class _AiDailyInsightState extends State<_AiDailyInsight> {
                 ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
           if (_loading && _insight == null)
             const LinearProgressIndicator()
           else
@@ -335,7 +513,30 @@ class _AiDailyInsightState extends State<_AiDailyInsight> {
               _failed && _insight == null
                   ? 'Daily insight is unavailable. Check your connection and try again.'
                   : _insight!,
-              style: const TextStyle(fontSize: 16, height: 1.4),
+              maxLines: _expanded ? null : 3,
+              overflow: _expanded
+                  ? TextOverflow.visible
+                  : TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, height: 1.3),
+            ),
+          if (_insight != null && _insight!.trim().isNotEmpty)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => setState(() => _expanded = !_expanded),
+                icon: Icon(
+                  _expanded
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  size: 17,
+                ),
+                label: Text(_expanded ? 'Show less' : 'See more'),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  minimumSize: const Size(48, 36),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+              ),
             ),
         ],
       ),
@@ -356,8 +557,8 @@ class _InsightsRangeSelector extends StatelessWidget {
       child: SegmentedButton<String>(
         showSelectedIcon: false,
         segments: const [
-          ButtonSegment(value: 'Week', label: Text('This Week')),
-          ButtonSegment(value: 'Month', label: Text('This Month')),
+          ButtonSegment(value: 'Week', label: Text('Week')),
+          ButtonSegment(value: 'Month', label: Text('Month')),
         ],
         selected: {value},
         onSelectionChanged: (value) => onChanged(value.first),
@@ -512,27 +713,30 @@ class _InsightsChatSheetState extends State<_InsightsChatSheet> {
                 ),
               ),
               if (_sending)
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: LinearProgressIndicator(),
+                Semantics(
+                  liveRegion: true,
+                  label: 'Assistant is preparing a response',
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: LinearProgressIndicator(),
+                  ),
                 ),
             ],
           ),
         ),
         if (_messages.length == 1)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+          Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-            child: Row(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
-                for (final suggestion in _suggestions) ...[
+                for (final suggestion in _suggestions)
                   ActionChip(
                     label: Text(suggestion),
                     avatar: const Icon(Icons.arrow_outward_rounded, size: 16),
                     onPressed: _sending ? null : () => _send(suggestion),
                   ),
-                  const SizedBox(width: 8),
-                ],
               ],
             ),
           ),
@@ -547,15 +751,17 @@ class _InsightsChatSheetState extends State<_InsightsChatSheet> {
             ),
             child: TextField(
               controller: _controller,
+              autofocus: true,
               textInputAction: TextInputAction.send,
               onSubmitted: (_) => _send(),
               minLines: 1,
               maxLines: 4,
               decoration: InputDecoration(
-                hintText: 'Ask about your activity...',
+                labelText: 'Ask about your activity',
+                hintText: 'For example, when do I focus best?',
                 prefixIcon: const Icon(Icons.chat_bubble_outline_rounded),
                 suffixIcon: IconButton(
-                  tooltip: 'Send',
+                  tooltip: 'Send message',
                   onPressed: _sending ? null : _send,
                   icon: const Icon(Icons.send_rounded),
                 ),
@@ -613,176 +819,10 @@ class _ChatBubble extends StatelessWidget {
   }
 }
 
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({
-    required this.label,
-    required this.value,
-    required this.subtitle,
-    this.showCircle = false,
-    this.showBars = false,
-    this.showProgress = false,
-    this.progress = 0,
-    this.bars,
-    this.barDurations,
-    required this.accent,
-  });
-
-  final String label;
-  final String value;
-  final String subtitle;
-  final bool showCircle;
-  final bool showBars;
-  final bool showProgress;
-  final double progress;
-  final List<double>? bars;
-  final List<Duration>? barDurations;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return shad.Card(
-      borderColor: accent.withValues(alpha: .22),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 14),
-            if (showCircle)
-              Center(
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    SizedBox(
-                      width: 120,
-                      height: 120,
-                      child: CircularProgressIndicator(
-                        value: progress,
-                        strokeWidth: 12,
-                        color: accent,
-                      ),
-                    ),
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          value,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(subtitle),
-                      ],
-                    ),
-                  ],
-                ),
-              )
-            else if (showBars)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    value,
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children:
-                        barDurations != null &&
-                            barDurations!.every(
-                              (duration) => duration == Duration.zero,
-                            )
-                        ? [
-                            const Expanded(
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(vertical: 28),
-                                child: Text(
-                                  'No activity recorded for this period yet.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(color: AppColors.muted),
-                                ),
-                              ),
-                            ),
-                          ]
-                        : [
-                            for (var index = 0; index < 7; index++)
-                              _DayBar(
-                                index: bars?[index] ?? .08,
-                                color: accent,
-                                label: const [
-                                  'M',
-                                  'T',
-                                  'W',
-                                  'T',
-                                  'F',
-                                  'S',
-                                  'S',
-                                ][index],
-                                value: barDurations == null
-                                    ? null
-                                    : InsightMetricsService.formatDuration(
-                                        barDurations![index],
-                                      ),
-                              ),
-                          ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(subtitle),
-                ],
-              )
-            else if (showProgress)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    value,
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: accent,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  LinearProgressIndicator(value: progress, color: accent),
-                  const SizedBox(height: 8),
-                  Text(subtitle),
-                ],
-              )
-            else
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    value,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(subtitle),
-                ],
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _DayBar extends StatelessWidget {
-  const _DayBar({required this.index, this.color, this.label, this.value});
+  const _DayBar({required this.index, this.label, this.value});
 
   final double index;
-  final Color? color;
   final String? label;
   final String? value;
 
@@ -790,8 +830,8 @@ class _DayBar extends StatelessWidget {
   Widget build(BuildContext context) => Tooltip(
     message: value == null ? 'Syncing' : '${label ?? 'Day'}: $value',
     child: SizedBox(
-      width: 32,
-      height: 120,
+      width: 30,
+      height: 90,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
@@ -806,9 +846,9 @@ class _DayBar extends StatelessWidget {
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOut,
             width: 18,
-            height: 88 * index,
+            height: 60 * index,
             decoration: BoxDecoration(
-              color: color ?? Theme.of(context).colorScheme.primary,
+              color: Theme.of(context).colorScheme.primary,
               borderRadius: BorderRadius.circular(6),
             ),
           ),

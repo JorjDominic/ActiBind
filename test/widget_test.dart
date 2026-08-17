@@ -34,8 +34,8 @@ void main() {
     await tester.pumpWidget(const App(home: HomePage()));
 
     for (final icon in [
-      Icons.view_timeline_rounded,
-      Icons.insights_rounded,
+      Icons.calendar_month_rounded,
+      Icons.bar_chart_rounded,
       Icons.settings_rounded,
     ]) {
       await tester.tap(find.byIcon(icon));
@@ -46,9 +46,9 @@ void main() {
     expect(find.byIcon(Icons.family_restroom_rounded), findsOneWidget);
     await tester.tap(find.text('Family mode'));
     await tester.pump();
-    expect(find.byIcon(Icons.family_restroom_rounded), findsNWidgets(2));
+    expect(find.byIcon(Icons.groups_rounded), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.family_restroom_rounded).last);
+    await tester.tap(find.byIcon(Icons.groups_rounded));
     await tester.pumpAndSettle();
     expect(
       find.text('Manage child profiles, devices, and screen time'),
@@ -71,7 +71,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(const App(home: HomePage()));
-    await tester.tap(find.byIcon(Icons.view_timeline_rounded));
+    await tester.tap(find.byIcon(Icons.calendar_month_rounded));
     await tester.pumpAndSettle();
     expect(find.text('Current Activity'), findsNothing);
     expect(find.text('Planner'), findsNWidgets(2));
