@@ -43,3 +43,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase client configuration is supplied locally/through CI.
+/android/app/google-services.json
+
+# Firebase Admin service-account keys must never be committed.
+*firebase-admin*.json
+*service-account*.json

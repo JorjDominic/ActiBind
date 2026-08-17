@@ -1,4 +1,5 @@
 import 'package:actibind/core/theme/app_colors.dart';
+import 'package:actibind/core/services/notification_service.dart';
 import 'package:actibind/features/activities/models/activity.dart';
 import 'package:actibind/features/activities/models/public_holiday.dart';
 import 'package:actibind/features/activities/services/activity_service.dart';
@@ -201,6 +202,7 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
       if (saved == true) {
         RoutineService.clearCache();
         await _load();
+        await NotificationService.syncSchedule();
       }
     }
   }
@@ -229,6 +231,7 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
       status: status,
     );
     await _loadRoutineOccurrences();
+    await NotificationService.syncSchedule();
   }
 
   Future<void> _create() async {
@@ -303,6 +306,7 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
     try {
       await operation();
       await _load();
+      await NotificationService.syncSchedule();
     } catch (error) {
       if (!mounted) return;
       setState(() {

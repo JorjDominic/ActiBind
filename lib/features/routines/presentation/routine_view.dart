@@ -1,4 +1,5 @@
 import 'package:actibind/core/theme/app_colors.dart';
+import 'package:actibind/core/services/notification_service.dart';
 import 'package:actibind/features/activities/services/activity_service.dart';
 import 'package:actibind/features/activities/services/activity_validation.dart';
 import 'package:actibind/features/routines/models/routine.dart';
@@ -61,7 +62,10 @@ class _RoutineViewState extends State<RoutineView> {
       useSafeArea: true,
       builder: (_) => RoutineFormSheet(routine: routine, existing: _routines),
     );
-    if (saved == true) await _load(refresh: true);
+    if (saved == true) {
+      await _load(refresh: true);
+      await NotificationService.syncSchedule();
+    }
   }
 
   Future<void> _setStatus(Routine routine, String status) async {
@@ -73,6 +77,7 @@ class _RoutineViewState extends State<RoutineView> {
         status: status,
       );
       await _load();
+      await NotificationService.syncSchedule();
     } catch (_) {
       if (mounted) {
         setState(() => _loading = false);
@@ -86,6 +91,7 @@ class _RoutineViewState extends State<RoutineView> {
   Future<void> _toggle(Routine routine) async {
     await RoutineService.setActive(routine, !routine.active);
     await _load(refresh: true);
+    await NotificationService.syncSchedule();
   }
 
   Future<void> _delete(Routine routine) async {
@@ -111,6 +117,7 @@ class _RoutineViewState extends State<RoutineView> {
     if (confirmed != true) return;
     await RoutineService.deleteRoutine(routine.id);
     await _load(refresh: true);
+    await NotificationService.syncSchedule();
   }
 
   @override

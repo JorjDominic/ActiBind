@@ -1,4 +1,5 @@
 import 'package:actibind/core/settings/family_mode_controller.dart';
+import 'package:actibind/core/services/notification_service.dart';
 import 'package:actibind/core/constants/app_constants.dart';
 import 'package:actibind/features/home/presentation/pages/activity_ledger_page.dart';
 import 'package:actibind/features/family/presentation/pages/family_page.dart';
@@ -31,6 +32,9 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationService.requestPermissionAndSync();
+    });
     FamilyModeController.instance.addListener(_handleFamilyModeChange);
     _pages[_Destination.home] = _buildPage(_Destination.home);
   }

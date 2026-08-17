@@ -1,8 +1,10 @@
 import 'package:actibind/app.dart';
 import 'package:actibind/core/config/supabase_config.dart';
+import 'package:actibind/core/services/push_notification_service.dart';
 import 'package:actibind/core/settings/family_mode_controller.dart';
 import 'package:actibind/core/theme/theme_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {
@@ -10,10 +12,14 @@ Future<void> main() async {
   await ThemeController.instance.load();
   await FamilyModeController.instance.load();
 
+  await Firebase.initializeApp();
+
   await Supabase.initialize(
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.publishableKey,
   );
+
+  await PushNotificationService.initialize();
 
   runApp(const App());
 }
