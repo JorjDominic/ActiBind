@@ -2,6 +2,7 @@ import 'package:actibind/app.dart';
 import 'package:actibind/core/config/supabase_config.dart';
 import 'package:actibind/core/services/push_notification_service.dart';
 import 'package:actibind/core/settings/family_mode_controller.dart';
+import 'package:actibind/core/settings/developer_mode_controller.dart';
 import 'package:actibind/core/theme/theme_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -11,6 +12,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ThemeController.instance.load();
   await FamilyModeController.instance.load();
+  await DeveloperModeController.instance.load();
 
   await Firebase.initializeApp();
 

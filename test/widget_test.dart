@@ -6,12 +6,13 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/widgets.dart' show Size;
+import 'package:flutter/widgets.dart' show Offset, Size;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/material.dart' show Icons;
+import 'package:flutter/material.dart' show Icons, OutlinedButton;
 
 import 'package:actibind/app.dart';
 import 'package:actibind/core/settings/family_mode_controller.dart';
+import 'package:actibind/core/settings/developer_mode_controller.dart';
 import 'package:actibind/features/home/presentation/pages/home_page.dart';
 
 void main() {
@@ -76,9 +77,34 @@ void main() {
     expect(find.text('Current Activity'), findsNothing);
     expect(find.text('Planner'), findsNWidgets(2));
 
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Tasks'));
+    await tester.pumpAndSettle();
+    expect(find.text('Quick tasks'), findsOneWidget);
+    expect(find.text('Add Task'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tapAt(const Offset(8, 8));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('Device Activity'));
     await tester.pumpAndSettle();
     expect(find.text('Recent Activity'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Developer mode reveals diagnostics navigation', (
+    WidgetTester tester,
+  ) async {
+    await DeveloperModeController.instance.setEnabled(false);
+    await tester.pumpWidget(const App(home: HomePage()));
+    await tester.tap(find.byIcon(Icons.settings_rounded));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Diagnostics'), findsNothing);
+    await tester.tap(find.text('Developer mode'));
+    await tester.pump();
+    expect(find.text('Diagnostics'), findsOneWidget);
+
+    await DeveloperModeController.instance.setEnabled(false);
   });
 }

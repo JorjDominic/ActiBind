@@ -1,7 +1,9 @@
 import 'package:actibind/core/constants/app_constants.dart';
 import 'package:actibind/core/settings/family_mode_controller.dart';
+import 'package:actibind/core/settings/developer_mode_controller.dart';
 import 'package:actibind/core/theme/app_colors.dart';
 import 'package:actibind/core/theme/theme_controller.dart';
+import 'package:actibind/features/developer/presentation/developer_diagnostics_page.dart';
 import 'package:actibind/shared/widgets/app_page_header.dart';
 import 'package:flutter/material.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
@@ -130,6 +132,33 @@ class SettingsPage extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: 10),
+              AnimatedBuilder(
+                animation: DeveloperModeController.instance,
+                builder: (context, _) => _SettingsSurface(
+                  padding: EdgeInsets.zero,
+                  child: SwitchListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    value: DeveloperModeController.instance.enabled,
+                    onChanged: DeveloperModeController.instance.setEnabled,
+                    secondary: const _SettingIcon(
+                      icon: Icons.developer_mode_rounded,
+                      color: AppColors.amber,
+                    ),
+                    title: const Text(
+                      'Developer mode',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      'Show diagnostics and service usage information',
+                      style: TextStyle(fontSize: 12, height: 1.3),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -169,6 +198,34 @@ class SettingsPage extends StatelessWidget {
                 subtitle: 'Version, privacy policy, and legal details',
               ),
             ],
+          ),
+          AnimatedBuilder(
+            animation: DeveloperModeController.instance,
+            builder: (context, _) {
+              if (!DeveloperModeController.instance.enabled) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: _SettingsSection(
+                  title: 'Developer',
+                  icon: Icons.code_rounded,
+                  color: AppColors.indigo,
+                  children: [
+                    _SettingsTile(
+                      icon: Icons.monitor_heart_outlined,
+                      title: 'Diagnostics',
+                      subtitle: 'AI tokens, service status, session, and build',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const DeveloperDiagnosticsPage(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
           if (onSignOut != null) ...[
             const SizedBox(height: 16),
@@ -360,11 +417,13 @@ class _SettingsTile extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -377,7 +436,7 @@ class _SettingsTile extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () {},
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(

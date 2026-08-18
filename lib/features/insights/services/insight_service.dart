@@ -2,6 +2,7 @@ import 'package:actibind/core/services/supabase_service.dart';
 import 'package:actibind/features/activities/services/activity_service.dart';
 import 'package:actibind/features/activities/services/usage_stats_service.dart';
 import 'package:actibind/features/weather/models/current_weather.dart';
+import 'package:functions_client/functions_client.dart';
 
 class InsightChatMessage {
   const InsightChatMessage({required this.role, required this.content});
@@ -127,37 +128,49 @@ class InsightService {
       }
     }
 
-    final response = await SupabaseService.client.functions.invoke(
-      'groq-insights',
-      body: {
-        'mode': mode,
-        'prompt': cleanPrompt,
-        'activities': activities
-            .map(
-              (item) => {
-                'name': item.name,
-                'category': item.category,
-                'starts_at': item.startsAt.toIso8601String(),
-                'ends_at': item.endsAt.toIso8601String(),
-                'repeat': item.repeat,
-              },
-            )
-            .toList(growable: false),
-        'usage': usage,
-        'history': history
-            .where(
-              (item) =>
-                  (item.role == 'user' || item.role == 'assistant') &&
-                  item.content.trim().isNotEmpty,
-            )
-            .take(8)
-            .map((item) => item.toJson())
-            .toList(growable: false),
-        'timezone': now.timeZoneName,
-        'local_time': now.toIso8601String(),
-        ...extraContext,
-      },
-    );
+    late final FunctionResponse response;
+    try {
+      response = await SupabaseService.client.functions.invoke(
+        'groq-insights',
+        body: {
+          'mode': mode,
+          'prompt': cleanPrompt,
+          'activities': activities
+              .map(
+                (item) => {
+                  'name': item.name,
+                  'category': item.category,
+                  'starts_at': item.startsAt.toIso8601String(),
+                  'ends_at': item.endsAt.toIso8601String(),
+                  'repeat': item.repeat,
+                },
+              )
+              .toList(growable: false),
+          'usage': usage,
+          'history': history
+              .where(
+                (item) =>
+                    (item.role == 'user' || item.role == 'assistant') &&
+                    item.content.trim().isNotEmpty,
+              )
+              .take(8)
+              .map((item) => item.toJson())
+              .toList(growable: false),
+          'timezone': now.timeZoneName,
+          'local_time': now.toIso8601String(),
+          ...extraContext,
+        },
+      );
+    } on FunctionException catch (error) {
+      if (error.status == 429 && error.details is Map) {
+        final details = Map<String, dynamic>.from(error.details as Map);
+        throw Exception(
+          details['error'] as String? ??
+              'The daily AI token limit has been reached.',
+        );
+      }
+      rethrow;
+    }
 
     if (response.status != 200 || response.data is! Map) {
       throw Exception('The insights service is temporarily unavailable.');

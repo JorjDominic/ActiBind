@@ -16,7 +16,14 @@ supabase functions deploy groq-insights
 ```
 
 The optional `GROQ_MODEL` secret can override the default
-`llama-3.1-8b-instant` production model.
+`openai/gpt-oss-20b` production model.
+
+The Edge Function enforces a shared daily budget of 180,000 tokens by default,
+leaving headroom below Groq's developer-tier limit. Override it when needed:
+
+```powershell
+supabase secrets set GROQ_DAILY_TOKEN_LIMIT=180000
+```
 
 ## Getting Started
 

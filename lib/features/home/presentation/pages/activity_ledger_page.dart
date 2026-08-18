@@ -8,6 +8,7 @@ import 'package:actibind/features/activities/services/usage_stats_service.dart';
 import 'package:actibind/features/devices/models/registered_device.dart';
 import 'package:actibind/features/devices/presentation/pages/pc_device_activity_page.dart';
 import 'package:actibind/features/devices/services/registered_device_service.dart';
+import 'package:actibind/features/todos/presentation/todo_list_view.dart';
 import 'package:actibind/shared/widgets/app_page_header.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -30,9 +31,14 @@ class _ActivityLedgerPageState extends State<ActivityLedgerPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const AppPageHeader(
+          AppPageHeader(
             title: 'Activity',
-            subtitle: 'Plan your time and review your device usage',
+            subtitle: 'Plan your time and review device usage',
+            trailing: OutlinedButton.icon(
+              onPressed: _openTasks,
+              icon: const Icon(Icons.checklist_rounded),
+              label: const Text('Tasks'),
+            ),
           ),
           const SizedBox(height: 18),
           SegmentedButton<int>(
@@ -66,6 +72,19 @@ class _ActivityLedgerPageState extends State<ActivityLedgerPage> {
       ),
     );
   }
+
+  Future<void> _openTasks() => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (_) => const FractionallySizedBox(
+      heightFactor: .9,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(AppConstants.defaultPadding),
+        child: TodoListView(),
+      ),
+    ),
+  );
 }
 
 class _ScheduleItem {
