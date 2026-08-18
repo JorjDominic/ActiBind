@@ -17,6 +17,11 @@ Future<void> main() async {
   await Supabase.initialize(
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.publishableKey,
+    authOptions: const FlutterAuthClientOptions(
+      // Persisted refresh tokens keep the user signed in between launches,
+      // while automatic refresh replaces short-lived access tokens.
+      autoRefreshToken: true,
+    ),
   );
 
   await PushNotificationService.initialize();

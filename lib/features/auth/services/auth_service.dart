@@ -12,9 +12,17 @@ class AuthService {
       _supabase.auth.onAuthStateChange;
 
   static Future<bool> validateCurrentSession() async {
-    if (currentSession == null) return false;
+    final session = currentSession;
+    if (session == null) return false;
 
     try {
+      // Access tokens are intentionally short-lived. Restore an expired one
+      // with the persisted refresh token instead of treating it as a logout.
+      if (session.isExpired) {
+        final response = await _supabase.auth.refreshSession();
+        return response.session != null;
+      }
+
       final response = await _supabase.auth.getUser();
       return response.user != null;
     } on AuthException {
