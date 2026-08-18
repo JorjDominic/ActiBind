@@ -1,4 +1,5 @@
 import 'package:actibind/core/theme/app_colors.dart';
+import 'package:actibind/core/services/home_widget_service.dart';
 import 'package:actibind/features/activities/presentation/widgets/activity_schedule_view.dart';
 import 'package:actibind/features/activities/services/activity_service.dart';
 import 'package:actibind/features/todos/models/todo_item.dart';
@@ -152,6 +153,7 @@ class _TodoListViewState extends State<TodoListView> {
     try {
       await action();
       await _load();
+      await HomeWidgetService.refreshTodos();
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,

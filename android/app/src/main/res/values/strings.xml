@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ActiBind</string>
+    <string name="todo_widget_name">ActiBind Tasks</string>
+    <string name="next_activity_widget_name">ActiBind Next Activity</string>
+    <string name="daily_insight_widget_name">ActiBind Daily Insight</string>
+    <string name="todo_widget_description">Open tasks and due dates</string>
+    <string name="next_activity_widget_description">Your next scheduled activity</string>
+    <string name="daily_insight_widget_description">Your latest ActiBind AI insight</string>
+</resources>

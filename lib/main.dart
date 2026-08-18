@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:actibind/app.dart';
 import 'package:actibind/core/config/supabase_config.dart';
 import 'package:actibind/core/services/push_notification_service.dart';
+import 'package:actibind/core/services/home_widget_service.dart';
 import 'package:actibind/core/settings/family_mode_controller.dart';
 import 'package:actibind/core/settings/developer_mode_controller.dart';
 import 'package:actibind/core/theme/theme_controller.dart';
@@ -29,4 +32,5 @@ Future<void> main() async {
   await PushNotificationService.initialize();
 
   runApp(const App());
+  unawaited(HomeWidgetService.refreshAll());
 }

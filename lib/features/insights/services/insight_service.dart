@@ -1,4 +1,5 @@
 import 'package:actibind/core/services/supabase_service.dart';
+import 'package:actibind/core/services/home_widget_service.dart';
 import 'package:actibind/features/activities/services/activity_service.dart';
 import 'package:actibind/features/activities/services/usage_stats_service.dart';
 import 'package:actibind/features/weather/models/current_weather.dart';
@@ -19,17 +20,25 @@ class InsightService {
   static final Map<String, ({String value, DateTime storedAt})> _cache = {};
   static final Map<String, Future<String>> _inFlight = {};
 
-  static Future<String> generateHomeInsight() => _request(
-    prompt:
-        'Give me one concise, practical insight for today in no more than two sentences.',
-    mode: 'home',
-  );
+  static Future<String> generateHomeInsight() async {
+    final insight = await _request(
+      prompt:
+          'Give me one concise, practical insight for today in no more than two sentences.',
+      mode: 'home',
+    );
+    await HomeWidgetService.updateInsight(insight);
+    return insight;
+  }
 
-  static Future<String> generateDailyInsight() => _request(
-    prompt:
-        'Analyze my recent activity and give me a useful daily insight with one specific next action.',
-    mode: 'daily',
-  );
+  static Future<String> generateDailyInsight() async {
+    final insight = await _request(
+      prompt:
+          'Analyze my recent activity and give me a useful daily insight with one specific next action.',
+      mode: 'daily',
+    );
+    await HomeWidgetService.updateInsight(insight);
+    return insight;
+  }
 
   static Future<String> generateWeatherTip({
     required CurrentWeather weather,

@@ -60,6 +60,18 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "com.example.actibind/home_widgets",
+        ).setMethodCallHandler { call, result ->
+            if (call.method != "updateWidgets") {
+                result.notImplemented()
+                return@setMethodCallHandler
+            }
+            @Suppress("UNCHECKED_CAST")
+            ActiBindWidgetUpdater.update(applicationContext, call.arguments as? Map<String, Any?> ?: emptyMap())
+            result.success(null)
+        }
     }
 
     override fun onDestroy() {

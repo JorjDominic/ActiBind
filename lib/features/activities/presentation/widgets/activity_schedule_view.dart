@@ -1,5 +1,6 @@
 import 'package:actibind/core/theme/app_colors.dart';
 import 'package:actibind/core/services/notification_service.dart';
+import 'package:actibind/core/services/home_widget_service.dart';
 import 'package:actibind/features/activities/models/activity.dart';
 import 'package:actibind/features/activities/models/public_holiday.dart';
 import 'package:actibind/features/activities/services/activity_service.dart';
@@ -307,6 +308,7 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
       await operation();
       await _load();
       await NotificationService.syncSchedule();
+      await HomeWidgetService.refreshNextActivity();
     } catch (error) {
       if (!mounted) return;
       setState(() {
