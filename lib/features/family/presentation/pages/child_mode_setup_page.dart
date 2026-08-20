@@ -1,6 +1,7 @@
 import 'package:actibind/core/theme/app_colors.dart';
 import 'package:actibind/features/family/models/family_models.dart';
 import 'package:actibind/features/family/services/device_policy_service.dart';
+import 'package:actibind/features/family/services/child_mode_session_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -29,8 +30,16 @@ class _ChildModeSetupPageState extends State<ChildModeSetupPage> {
   DevicePolicyCapabilities? _capabilities;
   final _allowed = <String>{};
   final _restricted = <String>{};
+  bool _restrictEverythingElse = true;
   List<ChildModeApp> _apps = const [];
   bool _loadingApps = true;
+
+  Set<String> get _effectiveRestricted => _restrictEverythingElse
+      ? _apps
+            .map((app) => app.packageName)
+            .where((packageName) => !_allowed.contains(packageName))
+            .toSet()
+      : _restricted;
 
   String get _childName => _childId == 'guest'
       ? 'Guest Child'
@@ -226,15 +235,28 @@ class _ChildModeSetupPageState extends State<ChildModeSetupPage> {
                               selected: _allowed,
                               excluded: _restricted,
                             ),
-                            const SizedBox(height: 12),
-                            _AppSelector(
-                              title: 'Restricted Apps',
-                              icon: Icons.block_rounded,
-                              color: AppColors.coral,
-                              items: _apps,
-                              selected: _restricted,
-                              excluded: _allowed,
+                            SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('Restrict every other app'),
+                              subtitle: const Text(
+                                'Recommended: only the apps selected above can be opened.',
+                              ),
+                              value: _restrictEverythingElse,
+                              onChanged: (value) => setState(
+                                () => _restrictEverythingElse = value,
+                              ),
                             ),
+                            if (!_restrictEverythingElse) ...[
+                              const SizedBox(height: 12),
+                              _AppSelector(
+                                title: 'Restricted Apps',
+                                icon: Icons.block_rounded,
+                                color: AppColors.coral,
+                                items: _apps,
+                                selected: _restricted,
+                                excluded: _allowed,
+                              ),
+                            ],
                           ],
                         ],
                       ),
@@ -290,7 +312,7 @@ class _ChildModeSetupPageState extends State<ChildModeSetupPage> {
             Text('Child: $_childName'),
             Text('Duration: $_minutes minutes'),
             Text('Allowed Apps: ${_allowed.length}'),
-            Text('Restricted Apps: ${_restricted.length}'),
+            Text('Restricted Apps: ${_effectiveRestricted.length}'),
             const SizedBox(height: 12),
             const Text(
               'Native app blocking will only activate when supported device-management privileges are available.',
@@ -344,7 +366,7 @@ class _ChildModeSetupPageState extends State<ChildModeSetupPage> {
           childName: _childName,
           duration: Duration(minutes: _minutes),
           allowedApps: _allowed,
-          restrictedApps: _restricted,
+          restrictedApps: _effectiveRestricted,
         ),
       );
     } catch (error) {
@@ -383,18 +405,25 @@ class _ChildModeSetupPageState extends State<ChildModeSetupPage> {
       );
     }
     if (!mounted) return;
+    await ChildModeSessionService.save(
+      childName: _childName,
+      minutes: _minutes,
+      allowedPackages: _allowed,
+      restrictedCount: _effectiveRestricted.length,
+      pin: _pin!,
+    );
+    if (!mounted) return;
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => _ActiveChildModePage(
+        builder: (_) => ActiveChildModePage(
           childName: _childName,
           minutes: _minutes,
           allowedCount: _allowed.length,
-          restrictedCount: _restricted.length,
+          restrictedCount: _effectiveRestricted.length,
           allowedApps: _apps
               .where((app) => _allowed.contains(app.packageName))
               .toList(),
-          pin: _pin!,
           policyService: _policyService,
         ),
       ),
@@ -635,35 +664,36 @@ class _CreatePinState extends State<_CreatePin> {
       ),
       const SizedBox(height: 6),
       const Text(
-        'Production storage must use platform-backed secure hashing. This preview keeps the PIN only for the current screen.',
+        'The PIN is stored as a salted one-way hash and is never displayed after setup.',
         style: TextStyle(fontSize: 11, color: AppColors.muted),
       ),
     ],
   );
 }
 
-class _ActiveChildModePage extends StatefulWidget {
-  const _ActiveChildModePage({
+class ActiveChildModePage extends StatefulWidget {
+  const ActiveChildModePage({
+    super.key,
     required this.childName,
     required this.minutes,
     required this.allowedCount,
     required this.restrictedCount,
-    required this.pin,
     required this.policyService,
     required this.allowedApps,
+    this.onEnded,
   });
   final String childName;
   final int minutes;
   final int allowedCount;
   final int restrictedCount;
-  final String pin;
   final DevicePolicyService policyService;
   final List<ChildModeApp> allowedApps;
+  final VoidCallback? onEnded;
   @override
-  State<_ActiveChildModePage> createState() => _ActiveChildModePageState();
+  State<ActiveChildModePage> createState() => _ActiveChildModePageState();
 }
 
-class _ActiveChildModePageState extends State<_ActiveChildModePage> {
+class _ActiveChildModePageState extends State<ActiveChildModePage> {
   int attempts = 0;
   @override
   Widget build(BuildContext context) => PopScope(
@@ -789,10 +819,7 @@ class _ActiveChildModePageState extends State<_ActiveChildModePage> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => _ParentOverrideSheet(
-        pin: widget.pin,
-        policyService: widget.policyService,
-      ),
+      builder: (_) => _ParentOverrideSheet(policyService: widget.policyService),
     );
     if (!mounted || result == null) return;
     if (result == _OverrideResult.unlocked) {
@@ -803,7 +830,11 @@ class _ActiveChildModePageState extends State<_ActiveChildModePage> {
         context,
       ).showSnackBar(const SnackBar(content: Text('Incorrect PIN.')));
     } else if (result == _OverrideResult.ended) {
-      Navigator.pop(context);
+      if (widget.onEnded case final onEnded?) {
+        onEnded();
+      } else {
+        Navigator.pop(context);
+      }
     }
   }
 }
@@ -811,8 +842,7 @@ class _ActiveChildModePageState extends State<_ActiveChildModePage> {
 enum _OverrideResult { unlocked, incorrect, ended }
 
 class _ParentOverrideSheet extends StatefulWidget {
-  const _ParentOverrideSheet({required this.pin, required this.policyService});
-  final String pin;
+  const _ParentOverrideSheet({required this.policyService});
   final DevicePolicyService policyService;
   @override
   State<_ParentOverrideSheet> createState() => _ParentOverrideSheetState();
@@ -883,11 +913,13 @@ class _ParentOverrideSheetState extends State<_ParentOverrideSheet> {
     ],
   );
 
-  void _unlock() {
-    if (input.text == widget.pin) {
+  Future<void> _unlock() async {
+    if (await ChildModeSessionService.verifyPin(input.text)) {
+      if (!mounted) return;
       FocusScope.of(context).unfocus();
       setState(() => unlocked = true);
     } else {
+      if (!mounted) return;
       Navigator.pop(context, _OverrideResult.incorrect);
     }
   }
@@ -920,6 +952,7 @@ class _ParentOverrideSheetState extends State<_ParentOverrideSheet> {
         title: const Text('End Child Mode'),
         onTap: () async {
           await widget.policyService.stopChildMode();
+          await ChildModeSessionService.clear();
           if (context.mounted) {
             Navigator.pop(context, _OverrideResult.ended);
           }

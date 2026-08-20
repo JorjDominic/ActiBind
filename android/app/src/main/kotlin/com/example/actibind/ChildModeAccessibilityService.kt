@@ -11,7 +11,11 @@ class ChildModeAccessibilityService : AccessibilityService() {
     private var lastBlockedAt = 0L
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        if (event == null || (
+                event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
+                    event.eventType != AccessibilityEvent.TYPE_WINDOWS_CHANGED
+            )
+        ) return
         val openedPackage = event.packageName?.toString() ?: return
         if (openedPackage == packageName) return
 
@@ -25,12 +29,14 @@ class ChildModeAccessibilityService : AccessibilityService() {
         lastBlockedPackage = openedPackage
         lastBlockedAt = now
 
-        startActivity(
-            packageManager.getLaunchIntentForPackage(packageName)?.apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                putExtra("blocked_package", openedPackage)
-            } ?: return,
-        )
+        startActivity(Intent(this, MainActivity::class.java).apply {
+            addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP,
+            )
+            putExtra("blocked_package", openedPackage)
+        })
         Toast.makeText(this, "This app is restricted in Child Mode", Toast.LENGTH_SHORT).show()
     }
 
