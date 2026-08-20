@@ -72,6 +72,38 @@ class MainActivity : FlutterActivity() {
             ActiBindWidgetUpdater.update(applicationContext, call.arguments as? Map<String, Any?> ?: emptyMap())
             result.success(null)
         }
+        val childMode = ChildModePolicyManager(this)
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "com.example.actibind/child_mode",
+        ).setMethodCallHandler { call, result ->
+            @Suppress("UNCHECKED_CAST")
+            val packages = call.argument<List<String>>("restrictedPackages") ?: emptyList()
+            val allowedPackages = call.argument<List<String>>("allowedPackages") ?: emptyList()
+            when (call.method) {
+                "capabilities" -> result.success(childMode.capabilities())
+                "installedApps" -> result.success(childMode.installedApps())
+                "requestAdmin" -> {
+                    childMode.requestAdmin()
+                    result.success(null)
+                }
+                "openDeviceAdminSettings" -> {
+                    childMode.openDeviceAdminSettings()
+                    result.success(null)
+                }
+                "openAccessibilitySettings" -> {
+                    childMode.openAccessibilitySettings()
+                    result.success(null)
+                }
+                "start" -> result.success(childMode.start(packages, allowedPackages))
+                "stop" -> result.success(childMode.stop(packages))
+                "launchApp" -> {
+                    val packageName = call.argument<String>("packageName")
+                    result.success(packageName != null && childMode.launchApp(packageName))
+                }
+                else -> result.notImplemented()
+            }
+        }
     }
 
     override fun onDestroy() {

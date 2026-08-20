@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="device_admin_description">Enables parent-approved controls used by Same-Device Child Mode.</string>
+    <string name="accessibility_service_description">Detects when a parent-selected restricted app opens and returns the child to ActiBind. It does not read or collect screen content.</string>
     <string name="app_name">ActiBind</string>
     <string name="todo_widget_name">ActiBind Tasks</string>
     <string name="next_activity_widget_name">ActiBind Next Activity</string>

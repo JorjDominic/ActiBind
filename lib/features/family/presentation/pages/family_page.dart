@@ -2,6 +2,7 @@ import 'package:actibind/core/constants/app_constants.dart';
 import 'package:actibind/core/theme/app_colors.dart';
 import 'package:actibind/features/family/models/family_models.dart';
 import 'package:actibind/features/family/presentation/pages/child_profile_page.dart';
+import 'package:actibind/features/family/presentation/pages/child_mode_setup_page.dart';
 import 'package:actibind/features/family/services/child_profile_service.dart';
 import 'package:actibind/shared/widgets/app_page_header.dart';
 import 'package:flutter/material.dart';
@@ -170,6 +171,17 @@ class _FamilyPageState extends State<FamilyPage> {
               side: BorderSide(color: AppColors.coral.withValues(alpha: .28)),
             ),
           ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: () => showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              useSafeArea: true,
+              builder: (_) => const _LinkDeviceSheet(),
+            ),
+            icon: const Icon(Icons.add_link_rounded),
+            label: const Text('Link Child Device'),
+          ),
           const SizedBox(height: 24),
           shad.Card(
             filled: true,
@@ -197,7 +209,7 @@ class _FamilyPageState extends State<FamilyPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Hand over this device safely',
+                          'Same-Device Child Mode',
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -206,7 +218,7 @@ class _FamilyPageState extends State<FamilyPage> {
                         ),
                         const SizedBox(height: 5),
                         Text(
-                          'Apply a child’s restrictions while they use this device.',
+                          'Temporarily restrict this device before giving it to a child.',
                           style: TextStyle(
                             fontSize: 13,
                             height: 1.35,
@@ -217,17 +229,15 @@ class _FamilyPageState extends State<FamilyPage> {
                         ),
                         const SizedBox(height: 14),
                         FilledButton.icon(
-                          onPressed: _profiles.isEmpty
-                              ? null
-                              : () => showModalBottomSheet<void>(
-                                  context: context,
-                                  useSafeArea: true,
-                                  builder: (_) =>
-                                      _ChildModeSheet(profiles: _profiles),
-                                ),
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  ChildModeSetupPage(profiles: _profiles),
+                            ),
+                          ),
                           icon: const Icon(Icons.lock_clock_rounded),
                           label: const Text(
-                            'Set up Child Mode',
+                            'Start Child Mode',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -646,6 +656,110 @@ class _ChildModeSheetState extends State<_ChildModeSheet> {
           label: const Text('Start Child Mode'),
         ),
       ],
+    ),
+  );
+}
+
+class _LinkDeviceSheet extends StatefulWidget {
+  const _LinkDeviceSheet();
+  @override
+  State<_LinkDeviceSheet> createState() => _LinkDeviceSheetState();
+}
+
+class _LinkDeviceSheetState extends State<_LinkDeviceSheet> {
+  final controller = TextEditingController();
+  String? code;
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.fromLTRB(
+      20,
+      20,
+      20,
+      MediaQuery.viewInsetsOf(context).bottom + 24,
+    ),
+    child: SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Link Child Device',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Connect a child's device to manage schedules, screen time, and restrictions remotely.",
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 18),
+          OutlinedButton.icon(
+            onPressed: () => setState(() => code = '482915'),
+            icon: const Icon(Icons.pin_rounded),
+            label: const Text('Generate Linking Code'),
+          ),
+          if (code != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.indigo.withValues(alpha: .08),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                'Linking Code: $code',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 2,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 18),
+          TextField(
+            controller: controller,
+            onChanged: (_) => setState(() {}),
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            decoration: const InputDecoration(
+              labelText: 'Enter Linking Code',
+              prefixIcon: Icon(Icons.dialpad_rounded),
+              border: OutlineInputBorder(),
+            ),
+          ),
+          FilledButton(
+            onPressed: controller.text.length == 6
+                ? () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Device linking is ready for backend integration.',
+                        ),
+                      ),
+                    );
+                  }
+                : null,
+            child: const Text('Link Device'),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Linking is a UI preview until device enrollment is connected.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 11, color: AppColors.muted),
+          ),
+        ],
+      ),
     ),
   );
 }
