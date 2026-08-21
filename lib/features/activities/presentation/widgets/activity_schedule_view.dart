@@ -267,6 +267,7 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
         repeat: draft.repeat,
         monitorUsage: draft.monitorUsage,
         warnConflicts: draft.warnConflicts,
+        reminderMinutes: draft.reminderMinutes,
       ),
     );
   }
@@ -289,6 +290,7 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
         repeat: draft.repeat,
         monitorUsage: draft.monitorUsage,
         warnConflicts: draft.warnConflicts,
+        reminderMinutes: draft.reminderMinutes,
       ),
     );
   }
@@ -767,7 +769,11 @@ class _PlannerRoutineCard extends StatelessWidget {
                 (today && now.isAfter(routine.endsAt(date)))
             ? 'missed'
             : 'scheduled');
-    final canUpdate = today && status == 'scheduled';
+    final selectedDay = DateUtils.dateOnly(date);
+    final todayDate = DateUtils.dateOnly(now);
+    final canComplete =
+        !selectedDay.isAfter(todayDate) && status != 'completed';
+    final canSkip = today && status == 'scheduled';
     final statusColor = switch (status) {
       'completed' => AppColors.teal,
       'skipped' || 'missed' => AppColors.coral,
@@ -824,21 +830,28 @@ class _PlannerRoutineCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (canUpdate) ...[
+            if (canComplete || canSkip) ...[
               const SizedBox(height: 10),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  OutlinedButton(
-                    onPressed: updating ? null : onSkip,
-                    child: const Text('Skip', maxLines: 1, softWrap: false),
-                  ),
-                  const SizedBox(height: 8),
-                  FilledButton.icon(
-                    onPressed: updating ? null : onComplete,
-                    icon: const Icon(Icons.check_circle_outline_rounded),
-                    label: const Text('Complete', maxLines: 1, softWrap: false),
-                  ),
+                  if (canSkip) ...[
+                    OutlinedButton(
+                      onPressed: updating ? null : onSkip,
+                      child: const Text('Skip', maxLines: 1, softWrap: false),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  if (canComplete)
+                    FilledButton.icon(
+                      onPressed: updating ? null : onComplete,
+                      icon: const Icon(Icons.check_circle_outline_rounded),
+                      label: const Text(
+                        'Mark Complete',
+                        maxLines: 1,
+                        softWrap: false,
+                      ),
+                    ),
                   if (updating) ...[
                     const SizedBox(height: 6),
                     const LinearProgressIndicator(minHeight: 2),
@@ -1164,6 +1177,7 @@ class ActivityDraft {
     required this.repeat,
     required this.monitorUsage,
     required this.warnConflicts,
+    required this.reminderMinutes,
   });
   final String name;
   final String category;
@@ -1172,6 +1186,7 @@ class ActivityDraft {
   final String repeat;
   final bool monitorUsage;
   final bool warnConflicts;
+  final int reminderMinutes;
 }
 
 class ActivityFormSheet extends StatefulWidget {
@@ -1201,6 +1216,7 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
   late TimeOfDay _end;
   late bool _monitor;
   late bool _warnings;
+  late int _reminderMinutes;
   String? _dateTimeError;
   bool _checkingConflicts = false;
 
@@ -1224,6 +1240,7 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
     );
     _monitor = item?.monitorUsage ?? true;
     _warnings = item?.warnConflicts ?? true;
+    _reminderMinutes = item?.reminderMinutes ?? 5;
   }
 
   @override
@@ -1341,6 +1358,7 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
         repeat: _repeat,
         monitorUsage: _monitor,
         warnConflicts: _warnings,
+        reminderMinutes: _reminderMinutes,
       ),
     );
   }
@@ -1543,6 +1561,31 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
                   )
                   .toList(),
               onChanged: (value) => setState(() => _repeat = value ?? _repeat),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<int>(
+              initialValue: _reminderMinutes,
+              decoration: const InputDecoration(
+                labelText: 'Advance reminder',
+                prefixIcon: Icon(Icons.notifications_active_outlined),
+                border: OutlineInputBorder(),
+              ),
+              items: const [0, 5, 10, 15, 30, 60]
+                  .map(
+                    (minutes) => DropdownMenuItem(
+                      value: minutes,
+                      child: Text(
+                        minutes == 0
+                            ? 'No advance reminder'
+                            : minutes == 60
+                            ? '1 hour before'
+                            : '$minutes minutes before',
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) =>
+                  setState(() => _reminderMinutes = value ?? 5),
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,

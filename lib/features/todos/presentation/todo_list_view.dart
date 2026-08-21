@@ -140,6 +140,7 @@ class _TodoListViewState extends State<TodoListView> {
         repeat: draft.repeat,
         monitorUsage: draft.monitorUsage,
         warnConflicts: draft.warnConflicts,
+        reminderMinutes: draft.reminderMinutes,
       );
       if (!todo.completed) await TodoService.setCompleted(todo, true);
     }, success: 'Task added to your schedule and completed.');

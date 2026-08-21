@@ -9,6 +9,7 @@ class Activity {
     required this.repeat,
     required this.monitorUsage,
     required this.warnConflicts,
+    required this.reminderMinutes,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -22,6 +23,7 @@ class Activity {
   final String repeat;
   final bool monitorUsage;
   final bool warnConflicts;
+  final int reminderMinutes;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -35,6 +37,7 @@ class Activity {
     repeat: json['repeat'] as String? ?? 'Never',
     monitorUsage: json['monitor_usage'] as bool? ?? true,
     warnConflicts: json['warn_conflicts'] as bool? ?? true,
+    reminderMinutes: json['reminder_minutes'] as int? ?? 5,
     createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
     updatedAt: DateTime.parse(json['updated_at'] as String).toLocal(),
   );

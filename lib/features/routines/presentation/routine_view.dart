@@ -318,6 +318,7 @@ class _RoutineFormSheetState extends State<RoutineFormSheet> {
   DateTime? _endsOn;
   late bool _monitor;
   late bool _warnings;
+  late int _reminderMinutes;
   bool _saving = false;
   String? _error;
 
@@ -335,6 +336,7 @@ class _RoutineFormSheetState extends State<RoutineFormSheet> {
     _endsOn = item?.endsOn;
     _monitor = item?.monitorUsage ?? true;
     _warnings = item?.warnConflicts ?? true;
+    _reminderMinutes = item?.reminderMinutes ?? 5;
   }
 
   @override
@@ -384,6 +386,7 @@ class _RoutineFormSheetState extends State<RoutineFormSheet> {
           endsOn: _endsOn,
           monitorUsage: _monitor,
           warnConflicts: _warnings,
+          reminderMinutes: _reminderMinutes,
         );
       } else {
         await RoutineService.updateRoutine(
@@ -398,6 +401,7 @@ class _RoutineFormSheetState extends State<RoutineFormSheet> {
           active: item.active,
           monitorUsage: _monitor,
           warnConflicts: _warnings,
+          reminderMinutes: _reminderMinutes,
         );
       }
       if (mounted) Navigator.pop(context, true);
@@ -528,6 +532,31 @@ class _RoutineFormSheetState extends State<RoutineFormSheet> {
                   .toList(),
               onChanged: (value) =>
                   setState(() => _category = value ?? _category),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<int>(
+              initialValue: _reminderMinutes,
+              decoration: const InputDecoration(
+                labelText: 'Advance reminder',
+                prefixIcon: Icon(Icons.notifications_active_outlined),
+                border: OutlineInputBorder(),
+              ),
+              items: const [0, 5, 10, 15, 30, 60]
+                  .map(
+                    (minutes) => DropdownMenuItem(
+                      value: minutes,
+                      child: Text(
+                        minutes == 0
+                            ? 'No advance reminder'
+                            : minutes == 60
+                            ? '1 hour before'
+                            : '$minutes minutes before',
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) =>
+                  setState(() => _reminderMinutes = value ?? 5),
             ),
             const SizedBox(height: 12),
             Row(

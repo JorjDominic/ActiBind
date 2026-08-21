@@ -146,6 +146,7 @@ abstract final class NotificationService {
             kind: 'Activity',
             startsAt: activity.startsAt,
             endsAt: activity.endsAt,
+            reminderMinutes: activity.reminderMinutes,
           );
         }
       }
@@ -172,6 +173,7 @@ abstract final class NotificationService {
               kind: 'Routine',
               startsAt: startsAt,
               endsAt: endsAt,
+              reminderMinutes: routine.reminderMinutes,
             );
           }
         }
@@ -204,8 +206,18 @@ abstract final class NotificationService {
     required String kind,
     required DateTime startsAt,
     required DateTime endsAt,
+    required int reminderMinutes,
   }) async {
     final now = DateTime.now();
+    final reminderAt = startsAt.subtract(Duration(minutes: reminderMinutes));
+    if (reminderMinutes > 0 && reminderAt.isAfter(now)) {
+      await _schedule(
+        id++,
+        reminderAt,
+        '$kind starting soon',
+        '$name starts in $reminderMinutes minutes.',
+      );
+    }
     if (startsAt.isAfter(now)) {
       await _schedule(
         id++,

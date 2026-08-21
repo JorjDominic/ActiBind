@@ -105,6 +105,7 @@ class _HomePageState extends State<HomePage> {
         repeat: draft.repeat,
         monitorUsage: draft.monitorUsage,
         warnConflicts: draft.warnConflicts,
+        reminderMinutes: draft.reminderMinutes,
       );
       if (!mounted) return;
       _pages.putIfAbsent(

@@ -115,6 +115,7 @@ class ActivityService {
     required String repeat,
     required bool monitorUsage,
     required bool warnConflicts,
+    int reminderMinutes = 5,
   }) async {
     ActivityValidation.validateActivity(
       name: name,
@@ -139,6 +140,7 @@ class ActivityService {
           'repeat': repeat,
           'monitor_usage': monitorUsage,
           'warn_conflicts': warnConflicts,
+          'reminder_minutes': reminderMinutes,
         })
         .select()
         .single();
@@ -156,6 +158,7 @@ class ActivityService {
     required String repeat,
     required bool monitorUsage,
     required bool warnConflicts,
+    int reminderMinutes = 5,
   }) async {
     ActivityValidation.validateId(id);
     ActivityValidation.validateActivity(
@@ -175,6 +178,7 @@ class ActivityService {
           'repeat': repeat,
           'monitor_usage': monitorUsage,
           'warn_conflicts': warnConflicts,
+          'reminder_minutes': reminderMinutes,
           'updated_at': DateTime.now().toUtc().toIso8601String(),
         })
         .eq('id', id)

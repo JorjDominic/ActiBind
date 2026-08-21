@@ -12,6 +12,7 @@ class Routine {
     required this.active,
     required this.monitorUsage,
     required this.warnConflicts,
+    required this.reminderMinutes,
   });
 
   final String id;
@@ -26,6 +27,7 @@ class Routine {
   final bool active;
   final bool monitorUsage;
   final bool warnConflicts;
+  final int reminderMinutes;
 
   bool occursOn(DateTime date) {
     final day = DateTime(date.year, date.month, date.day);
@@ -73,6 +75,7 @@ class Routine {
     active: json['active'] as bool? ?? true,
     monitorUsage: json['monitor_usage'] as bool? ?? true,
     warnConflicts: json['warn_conflicts'] as bool? ?? true,
+    reminderMinutes: json['reminder_minutes'] as int? ?? 5,
   );
 
   static int _parseTime(String value) {

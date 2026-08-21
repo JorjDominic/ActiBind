@@ -124,12 +124,12 @@ Deno.serve(async (request) => {
   try {
     const now = new Date();
     const lowerStart = new Date(now.getTime() - 60_000).toISOString();
-    const upperStart = new Date(now.getTime() + 60_000).toISOString();
+    const upperStart = new Date(now.getTime() + 61 * 60_000).toISOString();
     const lowerEnd = new Date(now.getTime() - 60_000).toISOString();
     const upperEnd = new Date(now.getTime() + 60_000).toISOString();
     const [{ data: tokens, error: tokenError }, { data: starting }, { data: ending }] = await Promise.all([
       supabase.from("device_push_tokens").select("token,user_id,timezone"),
-      supabase.from("activities").select("id,user_id,name,starts_at").gte("starts_at", lowerStart).lt("starts_at", upperStart),
+      supabase.from("activities").select("id,user_id,name,starts_at,reminder_minutes").gte("starts_at", lowerStart).lt("starts_at", upperStart),
       supabase.from("activities").select("id,user_id,name,ends_at").gte("ends_at", lowerEnd).lt("ends_at", upperEnd),
     ]);
     if (tokenError) throw tokenError;
@@ -143,12 +143,24 @@ Deno.serve(async (request) => {
       body: "Background activity and routine reminders are now connected.",
     }));
     for (const activity of starting ?? []) {
-      reminders.push({
-        key: `activity:${activity.id}:start:${activity.starts_at}`,
-        userId: activity.user_id,
-        title: "Activity started",
-        body: `${activity.name} is starting now.`,
-      });
+      const startDelta = (new Date(activity.starts_at).getTime() - now.getTime()) / 60_000;
+      const advance = activity.reminder_minutes ?? 5;
+      if (advance > 0 && startDelta >= advance - 1 && startDelta <= advance + 1) {
+        reminders.push({
+          key: `activity:${activity.id}:advance:${advance}:${activity.starts_at}`,
+          userId: activity.user_id,
+          title: "Activity starting soon",
+          body: `${activity.name} starts in ${advance} minutes.`,
+        });
+      }
+      if (startDelta >= -1 && startDelta <= 1) {
+        reminders.push({
+          key: `activity:${activity.id}:start:${activity.starts_at}`,
+          userId: activity.user_id,
+          title: "Activity started",
+          body: `${activity.name} is starting now.`,
+        });
+      }
     }
     for (const activity of ending ?? []) {
       reminders.push({
@@ -170,7 +182,7 @@ Deno.serve(async (request) => {
       if (!userIds.length) continue;
       const { data: routines } = await supabase
         .from("routines")
-        .select("id,user_id,name,start_time,end_time,active_days,starts_on,ends_on")
+        .select("id,user_id,name,start_time,end_time,active_days,starts_on,ends_on,reminder_minutes")
         .in("user_id", userIds)
         .eq("active", true)
         .lte("starts_on", local.date)
@@ -184,6 +196,15 @@ Deno.serve(async (request) => {
       for (const routine of routines ?? []) {
         if (!routine.active_days.includes(local.weekday) || (statuses.get(routine.id) ?? "scheduled") !== "scheduled") continue;
         const startDelta = timeMinutes(routine.start_time) - local.minute;
+        const advance = routine.reminder_minutes ?? 5;
+        if (advance > 0 && startDelta >= advance - 1 && startDelta <= advance + 1) {
+          reminders.push({
+            key: `routine:${routine.id}:advance:${advance}:${local.date}`,
+            userId: routine.user_id,
+            title: "Routine starting soon",
+            body: `${routine.name} starts in ${advance} minutes.`,
+          });
+        }
         if (startDelta >= -1 && startDelta <= 1) {
           reminders.push({
             key: `routine:${routine.id}:start:${local.date}`,
