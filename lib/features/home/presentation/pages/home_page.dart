@@ -9,6 +9,8 @@ import 'package:actibind/features/home/presentation/pages/screen_time_dashboard_
 import 'package:actibind/features/activities/presentation/widgets/activity_schedule_view.dart';
 import 'package:actibind/features/activities/services/activity_service.dart';
 import 'package:actibind/features/activities/services/activity_validation.dart';
+import 'package:actibind/features/routines/services/routine_service.dart';
+import 'package:actibind/features/routines/presentation/routine_view.dart';
 import 'package:actibind/features/insights/services/insight_metrics_service.dart';
 import 'package:actibind/shared/widgets/actibind_logo.dart';
 import 'package:actibind/core/theme/app_colors.dart';
@@ -65,14 +67,8 @@ class _HomePageState extends State<HomePage> {
   Widget _buildPage(_Destination destination) => switch (destination) {
     _Destination.home => HomeOverviewPage(
       displayName: widget.displayName,
-      onStartFocus: () =>
-          _createQuickActivity(name: 'Focus Session', category: 'Focus'),
-      onImproveWindDown: () =>
-          _createQuickActivity(name: 'Wind-down Routine', category: 'Sleep'),
-      onPlanWorkout: () =>
-          _createQuickActivity(name: 'Workout', category: 'Exercise'),
-      onPlanPersonal: () =>
-          _createQuickActivity(name: 'Personal Task', category: 'Personal'),
+      onAddActivity: () => _createQuickActivity(name: '', category: 'Focus'),
+      onAddRoutine: _createQuickRoutine,
     ),
     _Destination.activity => const ActivityLedgerPage(),
     _Destination.insights => const ScreenTimeDashboardPage(),
@@ -120,6 +116,29 @@ class _HomePageState extends State<HomePage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not create activity: $error')),
+      );
+    }
+  }
+
+  Future<void> _createQuickRoutine() async {
+    try {
+      final routines = await RoutineService.getRoutines();
+      if (!mounted) return;
+      final saved = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        builder: (_) => RoutineFormSheet(existing: routines),
+      );
+      if (saved != true || !mounted) return;
+      await NotificationService.syncSchedule();
+      _pages.remove(_Destination.activity);
+      _pages[_Destination.activity] = _buildPage(_Destination.activity);
+      setState(() => _selected = _Destination.activity);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not create routine: $error')),
       );
     }
   }

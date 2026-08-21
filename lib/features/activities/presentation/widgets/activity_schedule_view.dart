@@ -295,6 +295,19 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
     );
   }
 
+  Future<void> _editRoutine(Routine routine) async {
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => RoutineFormSheet(routine: routine, existing: _routines),
+    );
+    if (saved != true || !mounted) return;
+    RoutineService.clearCache();
+    await _load();
+    await NotificationService.syncSchedule();
+  }
+
   Future<void> _delete(Activity activity) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -316,6 +329,32 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
     );
     if (confirmed == true) {
       await _mutate(() => ActivityService.deleteActivity(activity.id));
+    }
+  }
+
+  Future<void> _deleteRoutine(Routine routine) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete routine?'),
+        content: Text(
+          '“${routine.name}” and its completion history will be permanently removed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.coral),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await _mutate(() => RoutineService.deleteRoutine(routine.id));
     }
   }
 
@@ -443,6 +482,9 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
                       updating: _updatingRoutineIds.contains(
                         _plannerItems[index].routine!.id,
                       ),
+                      onEdit: () => _editRoutine(_plannerItems[index].routine!),
+                      onDelete: () =>
+                          _deleteRoutine(_plannerItems[index].routine!),
                       onComplete: () => _setRoutineStatus(
                         _plannerItems[index].routine!,
                         'completed',
@@ -496,14 +538,24 @@ class _PlannerTimelineEntry extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
-            width: 54,
+            width: 38,
             child: Padding(
-              padding: const EdgeInsets.only(top: 16, right: 8),
-              child: Text(
-                DateFormat('h:mm').format(at),
+              padding: const EdgeInsets.only(top: 12, right: 4),
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(text: DateFormat('h:mm').format(at)),
+                    TextSpan(
+                      text: '\n${DateFormat('a').format(at)}',
+                      style: const TextStyle(fontSize: 8),
+                    ),
+                  ],
+                ),
                 textAlign: TextAlign.right,
+                softWrap: false,
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
+                  height: 1.05,
                   fontWeight: FontWeight.w700,
                   color: AppColors.muted,
                 ),
@@ -511,7 +563,7 @@ class _PlannerTimelineEntry extends StatelessWidget {
             ),
           ),
           SizedBox(
-            width: 24,
+            width: 14,
             child: Stack(
               alignment: Alignment.topCenter,
               children: [
@@ -523,25 +575,25 @@ class _PlannerTimelineEntry extends StatelessWidget {
                   ),
                 if (isFirst && !isLast)
                   Positioned(
-                    top: 20,
+                    top: 16,
                     bottom: 0,
                     child: Container(width: 2, color: AppColors.lavender),
                   ),
                 if (isLast && !isFirst)
                   Positioned(
                     top: 0,
-                    height: 21,
+                    height: 17,
                     child: Container(width: 2, color: AppColors.lavender),
                   ),
                 Positioned(
-                  top: 15,
+                  top: 11,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
-                    width: 12,
-                    height: 12,
+                    width: 10,
+                    height: 10,
                     decoration: BoxDecoration(
-                      color: isRoutine ? Colors.white : nodeColor,
-                      border: Border.all(color: nodeColor, width: 3),
+                      color: nodeColor,
+                      border: Border.all(color: nodeColor, width: 2.5),
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -549,10 +601,10 @@ class _PlannerTimelineEntry extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 1),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: 8),
               child: child,
             ),
           ),
@@ -748,6 +800,8 @@ class _PlannerRoutineCard extends StatelessWidget {
     required this.date,
     required this.occurrence,
     required this.updating,
+    required this.onEdit,
+    required this.onDelete,
     required this.onComplete,
     required this.onSkip,
   });
@@ -756,6 +810,8 @@ class _PlannerRoutineCard extends StatelessWidget {
   final DateTime date;
   final RoutineOccurrence? occurrence;
   final bool updating;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
   final VoidCallback onComplete;
   final VoidCallback onSkip;
 
@@ -780,58 +836,81 @@ class _PlannerRoutineCard extends StatelessWidget {
       _ => AppColors.amber,
     };
     return shad.Card(
+      padding: EdgeInsets.zero,
       borderColor: AppColors.indigo.withValues(alpha: .25),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(8),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  width: 34,
+                  height: 34,
                   decoration: BoxDecoration(
                     color: AppColors.indigo.withValues(alpha: .11),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(9),
                   ),
                   child: Icon(
                     _categoryIcon(routine.category),
                     color: _categoryColor(routine.category),
+                    size: 19,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        routine.name,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        '${DateFormat.jm().format(routine.startsAt(date))} – '
-                        '${DateFormat.jm().format(routine.endsAt(date))}',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 5),
-                      Wrap(
-                        spacing: 7,
-                        children: [
-                          _Tag(label: 'Routine', color: AppColors.indigo),
-                          _Tag(
-                            label: _badgeLabel(routine.category),
-                            color: _categoryColor(routine.category),
-                          ),
-                          _Tag(label: _badgeLabel(status), color: statusColor),
-                        ],
-                      ),
-                    ],
+                  child: Text(
+                    routine.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
+                ),
+                PopupMenuButton<String>(
+                  tooltip: 'Routine actions',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 112,
+                    maxWidth: 160,
+                  ),
+                  child: const SizedBox(
+                    width: 32,
+                    height: 34,
+                    child: Icon(Icons.more_vert_rounded),
+                  ),
+                  onSelected: (value) =>
+                      value == 'edit' ? onEdit() : onDelete(),
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  ],
                 ),
               ],
             ),
+            const SizedBox(height: 5),
+            Text(
+              ' ${DateFormat('h:mm a').format(routine.startsAt(date))} – '
+              '${DateFormat('h:mm a').format(routine.endsAt(date))}',
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.fade,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 5),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                _Tag(
+                  label: _badgeLabel(routine.category),
+                  color: _categoryColor(routine.category),
+                ),
+                _Tag(label: _badgeLabel(status), color: statusColor),
+              ],
+            ),
             if (canComplete || canSkip) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -884,78 +963,85 @@ class _ActivityCard extends StatelessWidget {
     final color = _categoryColor(activity.category);
     final status = _status(activity);
     return shad.Card(
+      padding: EdgeInsets.zero,
       borderColor: color.withValues(alpha: .24),
       child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: .12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(_categoryIcon(activity.category), color: color),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: .12),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Icon(
+                    _categoryIcon(activity.category),
+                    color: color,
+                    size: 19,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
                     activity.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    '${DateFormat.jm().format(activity.startsAt)} – ${DateFormat.jm().format(activity.endsAt)}',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                PopupMenuButton<String>(
+                  tooltip: 'Activity actions',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 112,
+                    maxWidth: 160,
                   ),
-                  const SizedBox(height: 5),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      _Tag(label: _badgeLabel(activity.category), color: color),
-                      _Tag(
-                        label: _badgeLabel(status),
-                        color: _statusColor(status),
-                      ),
-                      if (conflicts.isNotEmpty)
-                        _ConflictTag(
-                          count: conflicts.length,
-                          onPressed: () => _showConflicts(context),
-                        ),
-                      if (activity.repeat != 'Never')
-                        _Tag(label: activity.repeat, color: AppColors.indigo),
-                      if (activity.monitorUsage)
-                        const Icon(Icons.shield_outlined, size: 16),
-                    ],
+                  child: const SizedBox(
+                    width: 32,
+                    height: 34,
+                    child: Icon(Icons.more_vert_rounded),
                   ),
-                ],
-              ),
+                  onSelected: (value) =>
+                      value == 'edit' ? onEdit() : onDelete(),
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  ],
+                ),
+              ],
             ),
-            PopupMenuButton<String>(
-              tooltip: 'Activity actions',
-              onSelected: (value) => value == 'edit' ? onEdit() : onDelete(),
-              itemBuilder: (_) => const [
-                PopupMenuItem(
-                  value: 'edit',
-                  child: ListTile(
-                    leading: Icon(Icons.edit_rounded),
-                    title: Text('Edit'),
-                    contentPadding: EdgeInsets.zero,
+            const SizedBox(height: 5),
+            Text(
+              ' ${DateFormat('h:mm a').format(activity.startsAt)} – '
+              '${DateFormat('h:mm a').format(activity.endsAt)}',
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.fade,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 5),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                _Tag(label: _badgeLabel(activity.category), color: color),
+                _Tag(label: _badgeLabel(status), color: _statusColor(status)),
+                if (conflicts.isNotEmpty)
+                  _ConflictTag(
+                    count: conflicts.length,
+                    onPressed: () => _showConflicts(context),
                   ),
-                ),
-                PopupMenuItem(
-                  value: 'delete',
-                  child: ListTile(
-                    leading: Icon(Icons.delete_outline_rounded),
-                    title: Text('Delete'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
+                if (activity.repeat != 'Never')
+                  _Tag(label: activity.repeat, color: AppColors.indigo),
+                if (activity.monitorUsage)
+                  const Icon(Icons.shield_outlined, size: 15),
               ],
             ),
           ],
@@ -1025,7 +1111,7 @@ class _ConflictTag extends StatelessWidget {
         onTap: onPressed,
         borderRadius: BorderRadius.circular(10),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
             color: AppColors.coral.withValues(alpha: .12),
             borderRadius: BorderRadius.circular(10),
@@ -1063,7 +1149,7 @@ class _Tag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
     decoration: BoxDecoration(
       color: color.withValues(alpha: .1),
       borderRadius: BorderRadius.circular(10),

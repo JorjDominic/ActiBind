@@ -25,17 +25,13 @@ class HomeOverviewPage extends StatefulWidget {
   const HomeOverviewPage({
     super.key,
     required this.displayName,
-    required this.onStartFocus,
-    required this.onImproveWindDown,
-    required this.onPlanWorkout,
-    required this.onPlanPersonal,
+    required this.onAddActivity,
+    required this.onAddRoutine,
   });
 
   final String displayName;
-  final VoidCallback onStartFocus;
-  final VoidCallback onImproveWindDown;
-  final VoidCallback onPlanWorkout;
-  final VoidCallback onPlanPersonal;
+  final VoidCallback onAddActivity;
+  final VoidCallback onAddRoutine;
 
   @override
   State<HomeOverviewPage> createState() => _HomeOverviewPageState();
@@ -210,28 +206,16 @@ class _HomeOverviewPageState extends State<HomeOverviewPage> {
               mainAxisExtent: 76,
               children: [
                 _ActionCard(
-                  icon: Icons.lock_clock,
-                  title: 'Focus time',
+                  icon: Icons.event_note_rounded,
+                  title: 'Activity',
                   color: AppColors.indigo,
-                  onTap: widget.onStartFocus,
+                  onTap: widget.onAddActivity,
                 ),
                 _ActionCard(
-                  icon: Icons.nightlight_round,
-                  title: 'Wind-down',
+                  icon: Icons.repeat_rounded,
+                  title: 'Routine',
                   color: AppColors.teal,
-                  onTap: widget.onImproveWindDown,
-                ),
-                _ActionCard(
-                  icon: Icons.fitness_center_rounded,
-                  title: 'Workout',
-                  color: AppColors.coral,
-                  onTap: widget.onPlanWorkout,
-                ),
-                _ActionCard(
-                  icon: Icons.checklist_rounded,
-                  title: 'Personal task',
-                  color: AppColors.amber,
-                  onTap: widget.onPlanPersonal,
+                  onTap: widget.onAddRoutine,
                 ),
               ],
             ),

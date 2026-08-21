@@ -27,7 +27,10 @@ class _ActivityLedgerPageState extends State<ActivityLedgerPage> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppConstants.defaultPadding),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: AppConstants.defaultPadding,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

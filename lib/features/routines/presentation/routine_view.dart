@@ -209,36 +209,46 @@ class _RoutineCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final today = routine.occursOn(DateTime.now());
     final status = occurrence?.status ?? (today ? 'scheduled' : 'not today');
+    final color = _routineCategoryColor(routine.category);
     return shad.Card(
+      padding: EdgeInsets.zero,
       borderColor: (routine.active ? AppColors.teal : AppColors.muted)
           .withValues(alpha: .25),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.repeat_rounded,
-                  color: routine.active ? AppColors.teal : AppColors.muted,
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: .12),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Icon(
+                    _routineCategoryIcon(routine.category),
+                    color: color,
+                    size: 19,
+                  ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        routine.name,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      Text(
-                        '${_formatMinutes(routine.startMinutes)}–${_formatMinutes(routine.endMinutes)} · ${_days(routine.activeDays)}',
-                      ),
-                    ],
+                  child: Text(
+                    routine.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
                 PopupMenuButton<String>(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 32,
+                    height: 34,
+                  ),
                   onSelected: (value) => switch (value) {
                     'edit' => onEdit(),
                     'toggle' => onToggle(),
@@ -255,7 +265,16 @@ class _RoutineCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 5),
+            Text(
+              ' ${_formatMinutes(routine.startMinutes)}–'
+              '${_formatMinutes(routine.endMinutes)} · ${_days(routine.activeDays)}',
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.fade,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 5),
             Wrap(
               spacing: 7,
               crossAxisAlignment: WrapCrossAlignment.center,
@@ -297,6 +316,25 @@ class _RoutineCard extends StatelessWidget {
     );
   }
 }
+
+Color _routineCategoryColor(String category) => switch (category) {
+  'Exercise' => AppColors.coral,
+  'Study' || 'Focus' => AppColors.teal,
+  'Work' => AppColors.amber,
+  _ => AppColors.indigo,
+};
+
+IconData _routineCategoryIcon(String category) => switch (category) {
+  'Sleep' => Icons.bedtime_rounded,
+  'Exercise' => Icons.directions_run_rounded,
+  'Study' => Icons.school_rounded,
+  'Work' => Icons.business_center_rounded,
+  'Entertainment' => Icons.movie_rounded,
+  'Personal' => Icons.person_rounded,
+  'Custom' => Icons.tune_rounded,
+  'Focus' => Icons.center_focus_strong_rounded,
+  _ => Icons.event_rounded,
+};
 
 class RoutineFormSheet extends StatefulWidget {
   const RoutineFormSheet({super.key, this.routine, required this.existing});
