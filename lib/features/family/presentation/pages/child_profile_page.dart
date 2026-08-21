@@ -79,7 +79,7 @@ class ChildProfilePage extends StatelessWidget {
         body: TabBarView(
           children: [
             _OverviewTab(child: child),
-            const _ScreenTimeTab(),
+            _ScreenTimeTab(child: child),
             const _ScheduleTab(),
             const _RestrictionsTab(),
           ],
@@ -115,7 +115,7 @@ class _OverviewTab extends StatelessWidget {
         filled: true,
         fillColor: AppColors.indigo.withValues(alpha: .08),
         borderColor: AppColors.indigo.withValues(alpha: .16),
-        child: const Padding(
+        child: Padding(
           padding: EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -126,8 +126,11 @@ class _OverviewTab extends StatelessWidget {
               ),
               SizedBox(height: 12),
               Text(
-                '2h 14m',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                child.screenTime,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               Text(
                 'of 3h daily limit',
@@ -135,7 +138,7 @@ class _OverviewTab extends StatelessWidget {
               ),
               SizedBox(height: 12),
               LinearProgressIndicator(
-                value: .74,
+                value: (child.screenTimeMinutes / 180).clamp(0, 1),
                 minHeight: 8,
                 borderRadius: BorderRadius.all(Radius.circular(8)),
               ),
@@ -239,7 +242,8 @@ class _MiniStat extends StatelessWidget {
 }
 
 class _ScreenTimeTab extends StatefulWidget {
-  const _ScreenTimeTab();
+  const _ScreenTimeTab({required this.child});
+  final ChildProfile child;
   @override
   State<_ScreenTimeTab> createState() => _ScreenTimeTabState();
 }
@@ -263,7 +267,7 @@ class _ScreenTimeTabState extends State<_ScreenTimeTab> {
       ),
       const SizedBox(height: 16),
       shad.Card(
-        child: const Padding(
+        child: Padding(
           padding: EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -274,20 +278,23 @@ class _ScreenTimeTabState extends State<_ScreenTimeTab> {
               ),
               SizedBox(height: 5),
               Text(
-                '2h 14m',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+                widget.child.screenTime,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               SizedBox(height: 4),
               Text(
-                '46 minutes remaining',
-                style: TextStyle(
+                '${(180 - widget.child.screenTimeMinutes).clamp(0, 180)} minutes remaining',
+                style: const TextStyle(
                   color: AppColors.teal,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               SizedBox(height: 15),
               LinearProgressIndicator(
-                value: .74,
+                value: (widget.child.screenTimeMinutes / 180).clamp(0, 1),
                 minHeight: 9,
                 borderRadius: BorderRadius.all(Radius.circular(9)),
               ),

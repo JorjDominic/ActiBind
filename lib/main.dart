@@ -6,6 +6,7 @@ import 'package:actibind/core/services/push_notification_service.dart';
 import 'package:actibind/core/services/home_widget_service.dart';
 import 'package:actibind/core/settings/family_mode_controller.dart';
 import 'package:actibind/core/settings/developer_mode_controller.dart';
+import 'package:actibind/core/settings/daily_summary_controller.dart';
 import 'package:actibind/core/theme/theme_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -16,6 +17,7 @@ Future<void> main() async {
   await ThemeController.instance.load();
   await FamilyModeController.instance.load();
   await DeveloperModeController.instance.load();
+  await DailySummaryController.instance.load();
 
   await Firebase.initializeApp();
 

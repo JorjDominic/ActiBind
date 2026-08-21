@@ -8,11 +8,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/widgets.dart' show Offset, Size;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/material.dart' show Icons, OutlinedButton;
+import 'package:flutter/material.dart' show Icons, OutlinedButton, ThemeMode;
 
 import 'package:actibind/app.dart';
 import 'package:actibind/core/settings/family_mode_controller.dart';
 import 'package:actibind/core/settings/developer_mode_controller.dart';
+import 'package:actibind/core/settings/daily_summary_controller.dart';
+import 'package:actibind/core/theme/theme_controller.dart';
 import 'package:actibind/features/home/presentation/pages/home_page.dart';
 
 void main() {
@@ -106,5 +108,48 @@ void main() {
     expect(find.text('Diagnostics'), findsOneWidget);
 
     await DeveloperModeController.instance.setEnabled(false);
+  });
+
+  testWidgets('Appearance can change without deactivation assertions', (
+    WidgetTester tester,
+  ) async {
+    await ThemeController.instance.setMode(ThemeMode.system);
+    await tester.pumpWidget(const App(home: HomePage()));
+    await tester.tap(find.byIcon(Icons.settings_rounded));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Dark'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('Light'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Daily summary controls insight cards', (
+    WidgetTester tester,
+  ) async {
+    await DailySummaryController.instance.setEnabled(true);
+    await tester.pumpWidget(const App(home: HomePage()));
+    expect(find.text('Your latest insight'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.settings_rounded));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Daily summary'));
+    await tester.tap(find.text('Daily summary'));
+    await tester.pump();
+
+    await tester.tap(find.byIcon(Icons.home_rounded));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Your latest insight'), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.bar_chart_rounded));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Today’s smart takeaway'), findsNothing);
+
+    await DailySummaryController.instance.setEnabled(true);
+    await tester.pump();
+    expect(find.textContaining('smart takeaway'), findsOneWidget);
   });
 }

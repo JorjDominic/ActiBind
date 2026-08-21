@@ -64,4 +64,21 @@ class ChildProfileService {
   static Future<void> deleteProfile(String id) async {
     await _supabase.from('child_profiles').delete().eq('id', id);
   }
+
+  static Future<void> addScreenTime(String id, int minutes) async {
+    if (minutes <= 0) return;
+    final current = await _supabase
+        .from('child_profiles')
+        .select('screen_time_minutes')
+        .eq('id', id)
+        .single();
+    final total = (current['screen_time_minutes'] as int? ?? 0) + minutes;
+    await _supabase
+        .from('child_profiles')
+        .update({
+          'screen_time_minutes': total,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', id);
+  }
 }

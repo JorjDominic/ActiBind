@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:actibind/core/theme/app_colors.dart';
 import 'package:actibind/features/family/models/family_models.dart';
 import 'package:actibind/features/family/services/device_policy_service.dart';
 import 'package:actibind/features/family/services/child_mode_session_service.dart';
+import 'package:actibind/features/family/services/child_profile_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -406,6 +409,7 @@ class _ChildModeSetupPageState extends State<ChildModeSetupPage> {
     }
     if (!mounted) return;
     await ChildModeSessionService.save(
+      childId: _childId == 'guest' ? null : _childId,
       childName: _childName,
       minutes: _minutes,
       allowedPackages: _allowed,
@@ -413,9 +417,9 @@ class _ChildModeSetupPageState extends State<ChildModeSetupPage> {
       pin: _pin!,
     );
     if (!mounted) return;
-    await Navigator.push(
+    final ended = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(
+      MaterialPageRoute<bool>(
         builder: (_) => ActiveChildModePage(
           childName: _childName,
           minutes: _minutes,
@@ -428,6 +432,9 @@ class _ChildModeSetupPageState extends State<ChildModeSetupPage> {
         ),
       ),
     );
+    if (ended == true && mounted) {
+      Navigator.pop(context);
+    }
   }
 }
 
@@ -695,6 +702,78 @@ class ActiveChildModePage extends StatefulWidget {
 
 class _ActiveChildModePageState extends State<ActiveChildModePage> {
   int attempts = 0;
+  bool _finishing = false;
+  Timer? _timer;
+  ChildModeSession? _session;
+  int _remainingSeconds = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeTimer();
+  }
+
+  Future<void> _initializeTimer() async {
+    final session = await ChildModeSessionService.load();
+    if (!mounted) return;
+    _session = session;
+    _updateRemaining();
+    _timer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _updateRemaining(),
+    );
+  }
+
+  void _updateRemaining() {
+    final endsAt = _session?.endsAt;
+    final seconds =
+        endsAt?.difference(DateTime.now()).inSeconds ?? widget.minutes * 60;
+    if (!mounted) return;
+    setState(() => _remainingSeconds = seconds.clamp(0, 1 << 31));
+    if (seconds <= 0) _finishSession();
+  }
+
+  String get _remainingLabel {
+    final hours = _remainingSeconds ~/ 3600;
+    final minutes = (_remainingSeconds % 3600) ~/ 60;
+    final seconds = _remainingSeconds % 60;
+    return hours > 0
+        ? '${hours}h ${minutes.toString().padLeft(2, '0')}m ${seconds.toString().padLeft(2, '0')}s remaining'
+        : '${minutes}m ${seconds.toString().padLeft(2, '0')}s remaining';
+  }
+
+  Future<void> _finishSession() async {
+    if (_finishing) return;
+    _finishing = true;
+    _timer?.cancel();
+    final session = _session;
+    if (session != null && session.childId != null) {
+      final elapsedSeconds = DateTime.now()
+          .difference(session.startedAt)
+          .inSeconds;
+      final elapsed = (elapsedSeconds / 60).ceil();
+      try {
+        await ChildProfileService.addScreenTime(session.childId!, elapsed);
+      } catch (_) {
+        // Ending the protected session must still work while offline.
+      }
+    }
+    await widget.policyService.stopChildMode();
+    await ChildModeSessionService.clear();
+    if (!mounted) return;
+    if (widget.onEnded case final onEnded?) {
+      onEnded();
+    } else if (Navigator.of(context).canPop()) {
+      Navigator.pop(context, true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: false,
@@ -779,7 +858,7 @@ class _ActiveChildModePageState extends State<ActiveChildModePage> {
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      '${widget.minutes} minutes remaining',
+                      _remainingLabel,
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
@@ -830,11 +909,7 @@ class _ActiveChildModePageState extends State<ActiveChildModePage> {
         context,
       ).showSnackBar(const SnackBar(content: Text('Incorrect PIN.')));
     } else if (result == _OverrideResult.ended) {
-      if (widget.onEnded case final onEnded?) {
-        onEnded();
-      } else {
-        Navigator.pop(context);
-      }
+      await _finishSession();
     }
   }
 }
@@ -950,13 +1025,7 @@ class _ParentOverrideSheetState extends State<_ParentOverrideSheet> {
         iconColor: AppColors.coral,
         leading: const Icon(Icons.stop_circle_outlined),
         title: const Text('End Child Mode'),
-        onTap: () async {
-          await widget.policyService.stopChildMode();
-          await ChildModeSessionService.clear();
-          if (context.mounted) {
-            Navigator.pop(context, _OverrideResult.ended);
-          }
-        },
+        onTap: () => Navigator.pop(context, _OverrideResult.ended),
       ),
     ],
   );

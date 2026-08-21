@@ -1,4 +1,5 @@
 import 'package:actibind/core/constants/app_constants.dart';
+import 'package:actibind/core/settings/daily_summary_controller.dart';
 import 'package:actibind/core/theme/app_colors.dart';
 import 'package:actibind/features/insights/services/insight_service.dart';
 import 'package:actibind/features/insights/models/insight_metrics.dart';
@@ -81,9 +82,22 @@ class _ScreenTimeDashboardPageState extends State<ScreenTimeDashboardPage> {
           ),
           const SizedBox(height: 12),
           _AssistantBanner(onTap: () => _showInsightsChat(context)),
-          const SizedBox(height: 12),
-          const _AiDailyInsight(),
-          const SizedBox(height: 16),
+          AnimatedBuilder(
+            animation: DailySummaryController.instance,
+            builder: (context, _) {
+              if (!DailySummaryController.instance.enabled) {
+                return const SizedBox(height: 4);
+              }
+              return const Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(height: 12),
+                  _AiDailyInsight(),
+                  SizedBox(height: 16),
+                ],
+              );
+            },
+          ),
           if (_loadingMetrics) const LinearProgressIndicator(),
           if (_metricsFailed)
             ListTile(

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:actibind/core/constants/app_constants.dart';
+import 'package:actibind/core/settings/daily_summary_controller.dart';
 import 'package:actibind/core/theme/app_colors.dart';
 import 'package:actibind/features/activities/models/app_usage.dart';
 import 'package:actibind/features/activities/models/activity.dart';
@@ -237,13 +238,27 @@ class _HomeOverviewPageState extends State<HomeOverviewPage> {
           ),
           const SizedBox(height: 24),
           const _TopActivity(),
-          const SizedBox(height: 24),
-          const AppSectionHeader(
-            title: 'Your latest insight',
-            subtitle: 'A pattern worth knowing from your recent activity',
+          AnimatedBuilder(
+            animation: DailySummaryController.instance,
+            builder: (context, _) {
+              if (!DailySummaryController.instance.enabled) {
+                return const SizedBox.shrink();
+              }
+              return const Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(height: 24),
+                  AppSectionHeader(
+                    title: 'Your latest insight',
+                    subtitle:
+                        'A pattern worth knowing from your recent activity',
+                  ),
+                  SizedBox(height: 12),
+                  _AiHomeInsight(),
+                ],
+              );
+            },
           ),
-          const SizedBox(height: 12),
-          const _AiHomeInsight(),
         ],
       ),
     );

@@ -173,13 +173,8 @@ class _FamilyPageState extends State<FamilyPage> {
           ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
-            onPressed: () => showModalBottomSheet<void>(
-              context: context,
-              isScrollControlled: true,
-              useSafeArea: true,
-              builder: (_) => const _LinkDeviceSheet(),
-            ),
-            icon: const Icon(Icons.add_link_rounded),
+            onPressed: null,
+            icon: const Icon(Icons.lock_outline_rounded),
             label: const Text('Link Child Device'),
           ),
           const SizedBox(height: 24),
@@ -229,12 +224,15 @@ class _FamilyPageState extends State<FamilyPage> {
                         ),
                         const SizedBox(height: 14),
                         FilledButton.icon(
-                          onPressed: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  ChildModeSetupPage(profiles: _profiles),
-                            ),
-                          ),
+                          onPressed: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    ChildModeSetupPage(profiles: _profiles),
+                              ),
+                            );
+                            if (mounted) await _load();
+                          },
                           icon: const Icon(Icons.lock_clock_rounded),
                           label: const Text(
                             'Start Child Mode',

@@ -1,18 +1,27 @@
 import 'package:actibind/core/constants/app_constants.dart';
 import 'package:actibind/core/settings/family_mode_controller.dart';
 import 'package:actibind/core/settings/developer_mode_controller.dart';
+import 'package:actibind/core/settings/daily_summary_controller.dart';
+import 'package:actibind/core/services/supabase_service.dart';
+import 'package:actibind/features/auth/services/auth_service.dart';
 import 'package:actibind/core/theme/app_colors.dart';
 import 'package:actibind/core/theme/theme_controller.dart';
 import 'package:actibind/features/developer/presentation/developer_diagnostics_page.dart';
 import 'package:actibind/shared/widgets/app_page_header.dart';
 import 'package:flutter/material.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key, this.onSignOut});
 
   final Future<void> Function()? onSignOut;
 
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -112,23 +121,29 @@ class SettingsPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              _SettingsSurface(
-                padding: EdgeInsets.zero,
-                child: SwitchListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                  value: true,
-                  onChanged: (_) {},
-                  secondary: const _SettingIcon(
-                    icon: Icons.notifications_active_outlined,
-                    color: AppColors.teal,
-                  ),
-                  title: const Text(
-                    'Daily summary',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: const Text(
-                    'Receive a daily overview of your focus and activity',
-                    style: TextStyle(fontSize: 12, height: 1.3),
+              AnimatedBuilder(
+                animation: DailySummaryController.instance,
+                builder: (context, _) => _SettingsSurface(
+                  padding: EdgeInsets.zero,
+                  child: SwitchListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    value: DailySummaryController.instance.enabled,
+                    onChanged: DailySummaryController.instance.setEnabled,
+                    secondary: const _SettingIcon(
+                      icon: Icons.notifications_active_outlined,
+                      color: AppColors.teal,
+                    ),
+                    title: const Text(
+                      'Daily summary',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      'Receive a daily overview of your focus and activity',
+                      style: TextStyle(fontSize: 12, height: 1.3),
+                    ),
                   ),
                 ),
               ),
@@ -166,17 +181,19 @@ class SettingsPage extends StatelessWidget {
             title: 'Account',
             icon: Icons.person_rounded,
             color: AppColors.teal,
-            children: const [
+            children: [
               _SettingsTile(
                 icon: Icons.account_circle_outlined,
                 title: 'Profile',
                 subtitle: 'Update your name, photo, and email',
+                onTap: () => _editProfile(context),
               ),
               SizedBox(height: 8),
               _SettingsTile(
                 icon: Icons.security_rounded,
                 title: 'Security',
                 subtitle: 'Change password and app lock settings',
+                onTap: () => _openSecurity(context),
               ),
             ],
           ),
@@ -185,17 +202,25 @@ class SettingsPage extends StatelessWidget {
             title: 'Support',
             icon: Icons.support_agent_rounded,
             color: AppColors.amber,
-            children: const [
+            children: [
               _SettingsTile(
                 icon: Icons.help_outline_rounded,
                 title: 'Help center',
                 subtitle: 'Find guides and troubleshooting tips',
+                onTap: () => _showHelp(context),
               ),
               SizedBox(height: 8),
               _SettingsTile(
                 icon: Icons.info_outline_rounded,
                 title: 'About ActiBind',
                 subtitle: 'Version, privacy policy, and legal details',
+                onTap: () => showAboutDialog(
+                  context: context,
+                  applicationName: 'ActiBind',
+                  applicationVersion: '1.0.0',
+                  applicationLegalese:
+                      'Privacy-first activity and family controls.',
+                ),
               ),
             ],
           ),
@@ -227,7 +252,7 @@ class SettingsPage extends StatelessWidget {
               );
             },
           ),
-          if (onSignOut != null) ...[
+          if (widget.onSignOut != null) ...[
             const SizedBox(height: 16),
             shad.Card(
               borderColor: AppColors.coral.withValues(alpha: .25),
@@ -317,7 +342,118 @@ class SettingsPage extends StatelessWidget {
       ),
     );
 
-    if (confirmed == true) await onSignOut?.call();
+    if (confirmed == true) await widget.onSignOut?.call();
+  }
+
+  Future<void> _editProfile(BuildContext context) async {
+    final user = AuthService.currentUser;
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => _EditProfileDialog(
+        initialName: user?.userMetadata?['full_name'] as String? ?? '',
+      ),
+    );
+    if (name != null && name.isNotEmpty) {
+      await SupabaseService.client.auth.updateUser(
+        UserAttributes(data: {'full_name': name}),
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(
+          this.context,
+        ).showSnackBar(const SnackBar(content: Text('Profile updated.')));
+      }
+    }
+  }
+
+  Future<void> _openSecurity(BuildContext context) async {
+    final email = AuthService.currentUser?.email;
+    if (email == null) return;
+    final send = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Security'),
+        content: Text('Send a password reset link to $email?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Send link'),
+          ),
+        ],
+      ),
+    );
+    if (send == true) {
+      await AuthService.resetPassword(email: email);
+      if (mounted) {
+        ScaffoldMessenger.of(this.context).showSnackBar(
+          const SnackBar(content: Text('Password reset link sent.')),
+        );
+      }
+    }
+  }
+
+  void _showHelp(BuildContext context) => showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Help center'),
+      content: const Text(
+        'Use Family to create child profiles and start Child Mode. Use Activity to review schedules and device usage. For account access issues, use Security to request a password reset.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Done'),
+        ),
+      ],
+    ),
+  );
+}
+
+class _EditProfileDialog extends StatefulWidget {
+  const _EditProfileDialog({required this.initialName});
+
+  final String initialName;
+
+  @override
+  State<_EditProfileDialog> createState() => _EditProfileDialogState();
+}
+
+class _EditProfileDialogState extends State<_EditProfileDialog> {
+  late final TextEditingController _name = TextEditingController(
+    text: widget.initialName,
+  );
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Edit profile'),
+    content: TextField(
+      controller: _name,
+      autofocus: true,
+      textInputAction: TextInputAction.done,
+      onSubmitted: (_) => _save(),
+      decoration: const InputDecoration(labelText: 'Full name'),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(onPressed: _save, child: const Text('Save')),
+    ],
+  );
+
+  void _save() {
+    final name = _name.text.trim();
+    if (name.isNotEmpty) Navigator.pop(context, name);
   }
 }
 
