@@ -206,13 +206,12 @@ abstract final class NotificationService {
     required DateTime endsAt,
   }) async {
     final now = DateTime.now();
-    final reminderAt = startsAt.subtract(const Duration(minutes: 5));
-    if (reminderAt.isAfter(now)) {
+    if (startsAt.isAfter(now)) {
       await _schedule(
         id++,
-        reminderAt,
-        '$kind starting soon',
-        '$name starts in 5 minutes.',
+        startsAt,
+        '$kind started',
+        '$name is starting now.',
       );
     }
     if (endsAt.isAfter(now)) {

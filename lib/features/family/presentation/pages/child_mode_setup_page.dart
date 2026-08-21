@@ -6,6 +6,7 @@ import 'package:actibind/features/family/services/device_policy_service.dart';
 import 'package:actibind/features/family/services/child_mode_session_service.dart';
 import 'package:actibind/features/family/services/child_profile_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/services.dart';
 
 class ChildModeSetupPage extends StatefulWidget {
@@ -565,26 +566,38 @@ class _AppSelectorState extends State<_AppSelector> {
               ),
             ],
           ),
-          for (final item in widget.items)
-            CheckboxListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              secondary: _AppIcon(app: item),
-              title: Text(item.name),
-              subtitle: Text(
-                item.packageName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 10),
-              ),
-              value: widget.selected.contains(item.packageName),
-              enabled: !widget.excluded.contains(item.packageName),
-              onChanged: (value) => setState(
-                () => value == true
-                    ? widget.selected.add(item.packageName)
-                    : widget.selected.remove(item.packageName),
-              ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 360,
+            child: ListView.builder(
+              itemCount: widget.items.length,
+              itemExtent: 64,
+              scrollCacheExtent: const ScrollCacheExtent.pixels(256),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              itemBuilder: (context, index) {
+                final item = widget.items[index];
+                return CheckboxListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  secondary: _AppIcon(app: item),
+                  title: Text(item.name),
+                  subtitle: Text(
+                    item.packageName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 10),
+                  ),
+                  value: widget.selected.contains(item.packageName),
+                  enabled: !widget.excluded.contains(item.packageName),
+                  onChanged: (value) => setState(
+                    () => value == true
+                        ? widget.selected.add(item.packageName)
+                        : widget.selected.remove(item.packageName),
+                  ),
+                );
+              },
             ),
+          ),
         ],
       ),
     ),
@@ -605,7 +618,16 @@ class _AppIcon extends StatelessWidget {
             color: AppColors.indigo.withValues(alpha: .1),
             child: const Icon(Icons.apps_rounded, color: AppColors.indigo),
           )
-        : Image.memory(app.icon!, width: 38, height: 38, fit: BoxFit.cover),
+        : Image.memory(
+            app.icon!,
+            width: 38,
+            height: 38,
+            cacheWidth: 76,
+            cacheHeight: 76,
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.low,
+            gaplessPlayback: true,
+          ),
   );
 }
 
@@ -705,7 +727,9 @@ class _ActiveChildModePageState extends State<ActiveChildModePage> {
   bool _finishing = false;
   Timer? _timer;
   ChildModeSession? _session;
-  int _remainingSeconds = 0;
+  late final ValueNotifier<int> _remainingSeconds = ValueNotifier(
+    widget.minutes * 60,
+  );
 
   @override
   void initState() {
@@ -729,14 +753,14 @@ class _ActiveChildModePageState extends State<ActiveChildModePage> {
     final seconds =
         endsAt?.difference(DateTime.now()).inSeconds ?? widget.minutes * 60;
     if (!mounted) return;
-    setState(() => _remainingSeconds = seconds.clamp(0, 1 << 31));
+    _remainingSeconds.value = seconds.clamp(0, 1 << 31);
     if (seconds <= 0) _finishSession();
   }
 
-  String get _remainingLabel {
-    final hours = _remainingSeconds ~/ 3600;
-    final minutes = (_remainingSeconds % 3600) ~/ 60;
-    final seconds = _remainingSeconds % 60;
+  String _remainingLabel(int remainingSeconds) {
+    final hours = remainingSeconds ~/ 3600;
+    final minutes = (remainingSeconds % 3600) ~/ 60;
+    final seconds = remainingSeconds % 60;
     return hours > 0
         ? '${hours}h ${minutes.toString().padLeft(2, '0')}m ${seconds.toString().padLeft(2, '0')}s remaining'
         : '${minutes}m ${seconds.toString().padLeft(2, '0')}s remaining';
@@ -771,6 +795,7 @@ class _ActiveChildModePageState extends State<ActiveChildModePage> {
   @override
   void dispose() {
     _timer?.cancel();
+    _remainingSeconds.dispose();
     super.dispose();
   }
 
@@ -857,11 +882,14 @@ class _ActiveChildModePageState extends State<ActiveChildModePage> {
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 24),
-                    Text(
-                      _remainingLabel,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
+                    ValueListenableBuilder<int>(
+                      valueListenable: _remainingSeconds,
+                      builder: (context, seconds, _) => Text(
+                        _remainingLabel(seconds),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),

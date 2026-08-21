@@ -27,6 +27,7 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
   List<Routine> _routines = const [];
   Map<String, RoutineOccurrence> _routineOccurrences = const {};
   bool _loading = true;
+  final Set<String> _updatingRoutineIds = {};
   String? _error;
 
   @override
@@ -226,13 +227,27 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
   }
 
   Future<void> _setRoutineStatus(Routine routine, String status) async {
-    await RoutineService.setOccurrenceStatus(
-      routineId: routine.id,
-      date: _selectedDate,
-      status: status,
-    );
-    await _loadRoutineOccurrences();
-    await NotificationService.syncSchedule();
+    if (_updatingRoutineIds.contains(routine.id)) return;
+    setState(() => _updatingRoutineIds.add(routine.id));
+    try {
+      await RoutineService.setOccurrenceStatus(
+        routineId: routine.id,
+        date: _selectedDate,
+        status: status,
+      );
+      await _loadRoutineOccurrences();
+      await NotificationService.syncSchedule();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not update routine: ${_friendlyError(error)}'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _updatingRoutineIds.remove(routine.id));
+    }
   }
 
   Future<void> _create() async {
@@ -423,6 +438,9 @@ class _ActivityScheduleViewState extends State<ActivityScheduleView> {
                       date: _selectedDate,
                       occurrence:
                           _routineOccurrences[_plannerItems[index].routine!.id],
+                      updating: _updatingRoutineIds.contains(
+                        _plannerItems[index].routine!.id,
+                      ),
                       onComplete: () => _setRoutineStatus(
                         _plannerItems[index].routine!,
                         'completed',
@@ -727,6 +745,7 @@ class _PlannerRoutineCard extends StatelessWidget {
     required this.routine,
     required this.date,
     required this.occurrence,
+    required this.updating,
     required this.onComplete,
     required this.onSkip,
   });
@@ -734,6 +753,7 @@ class _PlannerRoutineCard extends StatelessWidget {
   final Routine routine;
   final DateTime date;
   final RoutineOccurrence? occurrence;
+  final bool updating;
   final VoidCallback onComplete;
   final VoidCallback onSkip;
 
@@ -767,9 +787,9 @@ class _PlannerRoutineCard extends StatelessWidget {
                     color: AppColors.indigo.withValues(alpha: .11),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
-                    Icons.repeat_rounded,
-                    color: AppColors.indigo,
+                  child: Icon(
+                    _categoryIcon(routine.category),
+                    color: _categoryColor(routine.category),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -793,10 +813,10 @@ class _PlannerRoutineCard extends StatelessWidget {
                         children: [
                           _Tag(label: 'Routine', color: AppColors.indigo),
                           _Tag(
-                            label: routine.category,
+                            label: _badgeLabel(routine.category),
                             color: _categoryColor(routine.category),
                           ),
-                          _Tag(label: status, color: statusColor),
+                          _Tag(label: _badgeLabel(status), color: statusColor),
                         ],
                       ),
                     ],
@@ -806,22 +826,23 @@ class _PlannerRoutineCard extends StatelessWidget {
             ),
             if (canUpdate) ...[
               const SizedBox(height: 10),
-              Row(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: onSkip,
-                      child: const Text('Skip'),
-                    ),
+                  OutlinedButton(
+                    onPressed: updating ? null : onSkip,
+                    child: const Text('Skip', maxLines: 1, softWrap: false),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: onComplete,
-                      icon: const Icon(Icons.check_rounded),
-                      label: const Text('Complete'),
-                    ),
+                  const SizedBox(height: 8),
+                  FilledButton.icon(
+                    onPressed: updating ? null : onComplete,
+                    icon: const Icon(Icons.check_circle_outline_rounded),
+                    label: const Text('Complete', maxLines: 1, softWrap: false),
                   ),
+                  if (updating) ...[
+                    const SizedBox(height: 6),
+                    const LinearProgressIndicator(minHeight: 2),
+                  ],
                 ],
               ),
             ],
@@ -883,8 +904,11 @@ class _ActivityCard extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 4,
                     children: [
-                      _Tag(label: activity.category, color: color),
-                      _Tag(label: status, color: _statusColor(status)),
+                      _Tag(label: _badgeLabel(activity.category), color: color),
+                      _Tag(
+                        label: _badgeLabel(status),
+                        color: _statusColor(status),
+                      ),
                       if (conflicts.isNotEmpty)
                         _ConflictTag(
                           count: conflicts.length,
@@ -1586,9 +1610,19 @@ Color _categoryColor(String category) => switch (category) {
 
 IconData _categoryIcon(String category) => switch (category) {
   'Sleep' => Icons.bedtime_rounded,
-  'Exercise' => Icons.fitness_center_rounded,
-  'Study' => Icons.menu_book_rounded,
-  'Work' => Icons.work_rounded,
-  'Entertainment' => Icons.sports_esports_rounded,
-  _ => Icons.center_focus_strong_rounded,
+  'Exercise' => Icons.directions_run_rounded,
+  'Study' => Icons.school_rounded,
+  'Work' => Icons.business_center_rounded,
+  'Entertainment' => Icons.movie_rounded,
+  'Personal' => Icons.person_rounded,
+  'Custom' => Icons.tune_rounded,
+  'Focus' => Icons.center_focus_strong_rounded,
+  _ => Icons.event_rounded,
 };
+
+String _badgeLabel(String value) => value
+    .trim()
+    .split(RegExp(r'\s+'))
+    .where((part) => part.isNotEmpty)
+    .map((part) => '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}')
+    .join(' ');

@@ -123,8 +123,8 @@ Deno.serve(async (request) => {
 
   try {
     const now = new Date();
-    const lowerStart = new Date(now.getTime() + 4 * 60_000).toISOString();
-    const upperStart = new Date(now.getTime() + 6 * 60_000).toISOString();
+    const lowerStart = new Date(now.getTime() - 60_000).toISOString();
+    const upperStart = new Date(now.getTime() + 60_000).toISOString();
     const lowerEnd = new Date(now.getTime() - 60_000).toISOString();
     const upperEnd = new Date(now.getTime() + 60_000).toISOString();
     const [{ data: tokens, error: tokenError }, { data: starting }, { data: ending }] = await Promise.all([
@@ -146,8 +146,8 @@ Deno.serve(async (request) => {
       reminders.push({
         key: `activity:${activity.id}:start:${activity.starts_at}`,
         userId: activity.user_id,
-        title: "Activity starting soon",
-        body: `${activity.name} starts in 5 minutes.`,
+        title: "Activity started",
+        body: `${activity.name} is starting now.`,
       });
     }
     for (const activity of ending ?? []) {
@@ -184,12 +184,12 @@ Deno.serve(async (request) => {
       for (const routine of routines ?? []) {
         if (!routine.active_days.includes(local.weekday) || (statuses.get(routine.id) ?? "scheduled") !== "scheduled") continue;
         const startDelta = timeMinutes(routine.start_time) - local.minute;
-        if (startDelta >= 4 && startDelta <= 6) {
+        if (startDelta >= -1 && startDelta <= 1) {
           reminders.push({
             key: `routine:${routine.id}:start:${local.date}`,
             userId: routine.user_id,
-            title: "Routine starting soon",
-            body: `${routine.name} starts in 5 minutes.`,
+            title: "Routine started",
+            body: `${routine.name} is starting now.`,
           });
         }
         const endDelta = timeMinutes(routine.end_time) - local.minute;
